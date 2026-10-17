@@ -241,6 +241,16 @@ def run_install_command() -> int:
     return 0
 
 
+def run_login_command() -> int:
+    """Execute interactive wrangler login."""
+    wrangler_path = shutil.which("wrangler")
+    if not wrangler_path:
+        sys.stderr.write("wrangler not found; run './btool install' first.\n")
+        return 1
+    proc = subprocess.run([wrangler_path, "login"])
+    return proc.returncode
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Construct CLI argument parser."""
     parser = argparse.ArgumentParser(
@@ -251,6 +261,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     subparsers.add_parser("check", help="Check required software and Cloudflare access")
     subparsers.add_parser("install", help="Install toolchain into cache directory")
+    subparsers.add_parser("login", help="Log in to Cloudflare via wrangler")
 
     return parser
 
@@ -265,6 +276,8 @@ def main() -> None:
         sys.exit(run_check_command())
     elif args.command == "install":
         sys.exit(run_install_command())
+    elif args.command == "login":
+        sys.exit(run_login_command())
 
 
 if __name__ == "__main__":
