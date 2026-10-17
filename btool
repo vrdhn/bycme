@@ -1,0 +1,271 @@
+#!/usr/bin/env python3
+"""Developer workflow driver for bycme repository."""
+
+import argparse
+import os
+import platform
+import shutil
+import subprocess
+import sys
+import tarfile
+import urllib.request
+from pathlib import Path
+
+# Tool version specifications
+NODE_VERSION = "v22.23.3"
+CACHE_DIR_DEFAULT = Path.home() / ".cache" / "bycme-repo"
+CACHE_DIR = Path(os.environ.get("BYCME_CACHE_DIR", CACHE_DIR_DEFAULT)).resolve()
+BIN_DIR = CACHE_DIR / "bin"
+TOOLS_DIR = CACHE_DIR / "tools"
+
+
+def prepend_bin_to_path() -> None:
+    """Prepend cache bin directory to PATH environment variable."""
+    bin_str = str(BIN_DIR)
+    current_path = os.environ.get("PATH", "")
+    paths = current_path.split(os.pathsep) if current_path else []
+    if bin_str not in paths:
+        os.environ["PATH"] = f"{bin_str}{os.pathsep}{current_path}"
+
+
+def ensure_directories() -> None:
+    """Create cache directory structure."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
+    TOOLS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def get_platform_node_target() -> str:
+    """Resolve OS and architecture to Node binary archive name."""
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+
+    if system == "linux":
+        os_tag = "linux"
+    elif system == "darwin":
+        os_tag = "darwin"
+    else:
+        raise RuntimeError(f"Unsupported operating system: {system}")
+
+    if machine in ("x86_64", "amd64"):
+        arch_tag = "x64"
+    elif machine in ("aarch64", "arm64"):
+        arch_tag = "arm64"
+    else:
+        raise RuntimeError(f"Unsupported architecture: {machine}")
+
+    return f"node-{NODE_VERSION}-{os_tag}-{arch_tag}"
+
+
+def download_file(url: str, dest_path: Path) -> None:
+    """Download remote file via HTTP request."""
+    sys.stdout.write(f"Downloading {url} ...\n")
+    sys.stdout.flush()
+    with urllib.request.urlopen(url) as response, open(dest_path, "wb") as out_file:
+        shutil.copyfileobj(response, out_file)
+
+
+def extract_archive(archive_path: Path, extract_dir: Path) -> None:
+    """Extract tar archive into destination directory."""
+    sys.stdout.write(f"Extracting {archive_path.name} ...\n")
+    sys.stdout.flush()
+    with tarfile.open(archive_path, "r:*") as tar:
+        tar.extractall(path=extract_dir)
+
+
+def symlink_binary(source: Path, target: Path) -> None:
+    """Create or update symlink to executable."""
+    if target.is_symlink() or target.exists():
+        target.unlink()
+    target.symlink_to(source)
+
+
+def link_node_binaries(node_root: Path) -> None:
+    """Link node, npm, npx executables into bin directory."""
+    node_bin = node_root / "bin"
+    for name in ("node", "npm", "npx"):
+        src = node_bin / name
+        if src.exists():
+            symlink_binary(src, BIN_DIR / name)
+
+
+def parse_semver_major(version_str: str) -> int:
+    """Extract semver major version as integer."""
+    clean = version_str.strip().lstrip("v")
+    major = clean.split(".")[0]
+    return int(major) if major.isdigit() else 0
+
+
+def get_installed_node_major() -> int:
+    """Check installed node major version in bin directory."""
+    node_bin = BIN_DIR / "node"
+    if not node_bin.exists():
+        return 0
+    try:
+        proc = subprocess.run(
+            [str(node_bin), "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+        if proc.returncode == 0:
+            return parse_semver_major(proc.stdout)
+    except Exception:
+        pass
+    return 0
+
+
+def install_node() -> None:
+    """Download and install portable Node.js binaries."""
+    node_target = get_platform_node_target()
+    node_dest = TOOLS_DIR / node_target
+    target_major = parse_semver_major(NODE_VERSION)
+
+    if get_installed_node_major() >= target_major:
+        sys.stdout.write(f"Node.js ({NODE_VERSION}+) already active.\n")
+        return
+
+    archive_name = f"{node_target}.tar.xz"
+    archive_url = f"https://nodejs.org/dist/{NODE_VERSION}/{archive_name}"
+    archive_path = CACHE_DIR / archive_name
+
+    download_file(archive_url, archive_path)
+    extract_archive(archive_path, TOOLS_DIR)
+    archive_path.unlink(missing_ok=True)
+    link_node_binaries(node_dest)
+
+
+def install_npm_packages() -> None:
+    """Install wrangler and typespec compiler into cache prefix."""
+    npm_path = BIN_DIR / "npm"
+    packages = ["wrangler", "@typespec/compiler"]
+
+    sys.stdout.write("Installing npm packages: wrangler, @typespec/compiler ...\n")
+    sys.stdout.flush()
+    env = {**os.environ, "PATH": f"{BIN_DIR}:{os.environ.get('PATH', '')}"}
+    cmd = [
+        str(npm_path),
+        "install",
+        "-g",
+        "--prefix",
+        str(CACHE_DIR),
+        *packages,
+    ]
+    subprocess.run(cmd, env=env, check=True)
+
+
+def check_tool(name: str, version_args: list[str]) -> tuple[bool, str]:
+    """Check binary availability and version."""
+    bin_path = shutil.which(name)
+    if not bin_path:
+        return False, "Not found"
+    try:
+        proc = subprocess.run(
+            [bin_path, *version_args],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+        )
+        lines = [line.strip() for line in (proc.stdout or proc.stderr).splitlines() if line.strip()]
+        version = lines[0] if lines else "Installed"
+        return True, f"{version} ({bin_path})"
+    except Exception as exc:
+        return False, f"Error: {exc}"
+
+
+def check_cloudflare_access() -> tuple[bool, str]:
+    """Verify Cloudflare authentication via wrangler non-interactively."""
+    wrangler_path = shutil.which("wrangler")
+    if not wrangler_path:
+        return False, "wrangler not found; run './btool install'"
+
+    try:
+        env = {**os.environ, "CI": "true"}
+        proc = subprocess.run(
+            [wrangler_path, "whoami"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+            env=env,
+        )
+        combined = f"{proc.stdout}\n{proc.stderr}"
+        if proc.returncode == 0 and "You are logged in" in combined:
+            lines = [line.strip() for line in combined.splitlines() if line.strip() and not line.startswith("⛅")]
+            details = ", ".join(lines[:2]) if lines else "Authenticated"
+            return True, details
+        return False, "Not authenticated. Run 'wrangler login' or set CLOUDFLARE_API_TOKEN"
+    except Exception as exc:
+        return False, f"Error checking Cloudflare access: {exc}"
+
+
+def run_check_command() -> int:
+    """Execute environment and access checks."""
+    print("=== Tool Availability Check ===")
+    tools = [
+        ("node", ["--version"]),
+        ("npm", ["--version"]),
+        ("wrangler", ["--version"]),
+        ("tsp", ["--version"]),
+    ]
+
+    all_passed = True
+    for name, args in tools:
+        ok, details = check_tool(name, args)
+        status = "OK" if ok else "FAIL"
+        print(f"[{status}] {name:10}: {details}")
+        if not ok:
+            all_passed = False
+
+    print("\n=== Cloudflare Access Check ===")
+    cf_ok, cf_details = check_cloudflare_access()
+    cf_status = "OK" if cf_ok else "FAIL"
+    print(f"[{cf_status}] Cloudflare : {cf_details}")
+    if not cf_ok:
+        all_passed = False
+
+    return 0 if all_passed else 1
+
+
+def run_install_command() -> int:
+    """Execute installation of toolchain into cache directory."""
+    print(f"Installing toolchain into: {CACHE_DIR}")
+    ensure_directories()
+    prepend_bin_to_path()
+    install_node()
+    install_npm_packages()
+    print("\nInstallation complete.")
+    print(f"Executables located in: {BIN_DIR}")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Construct CLI argument parser."""
+    parser = argparse.ArgumentParser(
+        prog="btool",
+        description="bycme developer interaction tool",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    subparsers.add_parser("check", help="Check required software and Cloudflare access")
+    subparsers.add_parser("install", help="Install toolchain into cache directory")
+
+    return parser
+
+
+def main() -> None:
+    """Main CLI entrypoint."""
+    prepend_bin_to_path()
+    parser = build_parser()
+    args = parser.parse_args()
+
+    if args.command == "check":
+        sys.exit(run_check_command())
+    elif args.command == "install":
+        sys.exit(run_install_command())
+
+
+if __name__ == "__main__":
+    main()
