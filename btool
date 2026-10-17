@@ -18,15 +18,22 @@ CACHE_DIR_DEFAULT = Path.home() / ".cache" / "bycme-repo"
 CACHE_DIR = Path(os.environ.get("BYCME_CACHE_DIR", CACHE_DIR_DEFAULT)).resolve()
 BIN_DIR = CACHE_DIR / "bin"
 TOOLS_DIR = CACHE_DIR / "tools"
+REPO_ROOT = Path(__file__).resolve().parent
+CONFIG_PATH = REPO_ROOT / "config.json"
 
 
 def prepend_bin_to_path() -> None:
-    """Prepend cache bin directory to PATH environment variable."""
+    """Prepend cache bin directory and export NODE_PATH."""
     bin_str = str(BIN_DIR)
     current_path = os.environ.get("PATH", "")
     paths = current_path.split(os.pathsep) if current_path else []
     if bin_str not in paths:
         os.environ["PATH"] = f"{bin_str}{os.pathsep}{current_path}"
+
+    node_modules_path = str(CACHE_DIR / "lib" / "node_modules")
+    current_node_path = os.environ.get("NODE_PATH", "")
+    if node_modules_path not in current_node_path:
+        os.environ["NODE_PATH"] = f"{node_modules_path}{os.pathsep}{current_node_path}" if current_node_path else node_modules_path
 
 
 def ensure_directories() -> None:
@@ -138,11 +145,17 @@ def install_node() -> None:
 
 
 def install_npm_packages() -> None:
-    """Install wrangler and typespec compiler into cache prefix."""
+    """Install wrangler, typespec compiler and emitters into cache prefix."""
     npm_path = BIN_DIR / "npm"
-    packages = ["wrangler", "@typespec/compiler"]
+    packages = [
+        "wrangler",
+        "@typespec/compiler",
+        "@typespec/http",
+        "@typespec/rest",
+        "@typespec/openapi3",
+    ]
 
-    sys.stdout.write("Installing npm packages: wrangler, @typespec/compiler ...\n")
+    sys.stdout.write("Installing npm toolchain packages ...\n")
     sys.stdout.flush()
     env = {**os.environ, "PATH": f"{BIN_DIR}:{os.environ.get('PATH', '')}"}
     cmd = [
@@ -176,10 +189,6 @@ def check_tool(name: str, version_args: list[str]) -> tuple[bool, str]:
         return False, f"Error: {exc}"
 
 
-REPO_ROOT = Path(__file__).resolve().parent
-CONFIG_PATH = REPO_ROOT / "config.json"
-
-
 def load_config() -> dict:
     """Load configuration dictionary from repository config.json."""
     if not CONFIG_PATH.exists():
@@ -201,6 +210,16 @@ def get_staging_project(config: dict) -> str:
     if "staging_project" in config:
         return str(config["staging_project"])
     return ""
+
+
+def get_staging_db(config: dict) -> str:
+    """Extract staging D1 database name from configuration."""
+    envs = config.get("environments", {})
+    if isinstance(envs, dict) and "staging" in envs:
+        staging = envs["staging"]
+        if isinstance(staging, dict):
+            return staging.get("d1_database", "bycme-staging-db")
+    return "bycme-staging-db"
 
 
 def fetch_cloudflare_identity() -> dict | None:
@@ -251,6 +270,14 @@ def check_project_access(identity: dict | None, project_name: str) -> tuple[bool
             return True, f"Accessible under account '{project_name}' (ID: {acc_id})"
 
     return False, f"Project '{project_name}' not found in Cloudflare accounts"
+
+
+def ensure_typespec_modules() -> None:
+    """Link cache node_modules into typespec directory for compiler resolution."""
+    typespec_modules = REPO_ROOT / "typespec" / "node_modules"
+    cache_modules = CACHE_DIR / "lib" / "node_modules"
+    if not typespec_modules.exists() and cache_modules.exists():
+        typespec_modules.symlink_to(cache_modules)
 
 
 def run_check_command() -> int:
@@ -315,6 +342,170 @@ def run_login_command() -> int:
     return proc.returncode
 
 
+def run_codegen_command() -> int:
+    """Compile TypeSpec definitions into OpenAPI schema and shared types."""
+    print("=== [Codegen] Compiling TypeSpec API Definitions ===")
+    ensure_typespec_modules()
+    tsp_path = shutil.which("tsp")
+    if not tsp_path:
+        print("[FAIL] tsp not found; run './btool install'")
+        return 1
+
+    proc = subprocess.run(
+        [tsp_path, "compile", "typespec", "--pretty=false"],
+        cwd=REPO_ROOT,
+        check=False,
+    )
+    if proc.returncode != 0:
+        print("[FAIL] TypeSpec compilation failed.")
+        return proc.returncode
+
+    schema_file = REPO_ROOT / "schema" / "openapi.json"
+    if schema_file.exists():
+        print(f"[OK] OpenAPI schema generated at: {schema_file}")
+    else:
+        print("[FAIL] Schema output not found.")
+        return 1
+    return 0
+
+
+def run_build_command() -> int:
+    """Build backend Worker bundle and frontend React SPA."""
+    print("\n=== [Build] Building Frontend and Backend Artifacts ===")
+    npm_path = shutil.which("npm")
+    if not npm_path:
+        print("[FAIL] npm not found; run './btool install'")
+        return 1
+
+    frontend_dir = REPO_ROOT / "frontend"
+    if not (frontend_dir / "node_modules").exists():
+        print("Installing frontend npm dependencies ...")
+        proc_install = subprocess.run([npm_path, "install"], cwd=frontend_dir, check=False)
+        if proc_install.returncode != 0:
+            print("[FAIL] Frontend npm install failed.")
+            return proc_install.returncode
+
+    print("Building frontend React SPA with Vite ...")
+    proc_build = subprocess.run([npm_path, "run", "build"], cwd=frontend_dir, check=False)
+    if proc_build.returncode != 0:
+        print("[FAIL] Frontend build failed.")
+        return proc_build.returncode
+
+    dist_index = frontend_dir / "dist" / "index.html"
+    if not dist_index.exists():
+        print("[FAIL] Frontend dist bundle missing index.html")
+        return 1
+
+    print("[OK] Frontend bundle built successfully in frontend/dist.")
+    return 0
+
+
+def run_migrate_command() -> int:
+    """Apply pending SQL migrations to Cloudflare D1 database."""
+    print("\n=== [Migrate] Applying D1 Database Migrations ===")
+    wrangler_path = shutil.which("wrangler")
+    if not wrangler_path:
+        print("[FAIL] wrangler not found; run './btool install'")
+        return 1
+
+    config = load_config()
+    db_name = get_staging_db(config)
+    backend_dir = REPO_ROOT / "backend"
+
+    print(f"Applying pending migrations from sqlsource/migrations/ to '{db_name}' ...")
+    env = {**os.environ, "CI": "true"}
+    cmd = [
+        wrangler_path,
+        "d1",
+        "migrations",
+        "apply",
+        db_name,
+        "--remote",
+    ]
+    proc = subprocess.run(cmd, cwd=backend_dir, env=env, check=False)
+    if proc.returncode != 0:
+        print(f"[FAIL] Migrations failed for database '{db_name}'.")
+        return proc.returncode
+
+    print(f"[OK] D1 migrations applied successfully to '{db_name}'.")
+    return 0
+
+
+def run_publish_command() -> int:
+    """Deploy backend Worker and frontend Pages to Cloudflare."""
+    print("\n=== [Publish] Deploying Backend Worker and Frontend Pages ===")
+    wrangler_path = shutil.which("wrangler")
+    if not wrangler_path:
+        print("[FAIL] wrangler not found; run './btool install'")
+        return 1
+
+    config = load_config()
+    project = get_staging_project(config)
+    backend_dir = REPO_ROOT / "backend"
+    frontend_dist = REPO_ROOT / "frontend" / "dist"
+
+    env = {**os.environ, "CI": "true"}
+
+    print("Deploying backend Worker ...")
+    proc_worker = subprocess.run(
+        [wrangler_path, "deploy"],
+        cwd=backend_dir,
+        env=env,
+        check=False,
+    )
+    if proc_worker.returncode != 0:
+        print("[FAIL] Backend Worker deployment failed.")
+        return proc_worker.returncode
+
+    print(f"Deploying frontend Pages to project '{project}' ...")
+    proc_pages = subprocess.run(
+        [
+            wrangler_path,
+            "pages",
+            "deploy",
+            str(frontend_dist),
+            "--project-name",
+            project,
+            "--commit-dirty=true",
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        check=False,
+    )
+    if proc_pages.returncode != 0:
+        print("[FAIL] Frontend Pages deployment failed.")
+        return proc_pages.returncode
+
+    print(f"[OK] Published successfully to staging ({project}).")
+    return 0
+
+
+def run_staging_command() -> int:
+    """Execute complete staging pipeline: check, codegen, build, migrate, and publish."""
+    print("==================================================")
+    print("         BYCME STAGING PIPELINE EXECUTION         ")
+    print("==================================================")
+
+    steps = [
+        ("Preflight Check", run_check_command),
+        ("TypeSpec Codegen", run_codegen_command),
+        ("Artifact Build", run_build_command),
+        ("D1 Migrations", run_migrate_command),
+        ("Cloudflare Publish", run_publish_command),
+    ]
+
+    for label, action in steps:
+        rc = action()
+        if rc != 0:
+            print(f"\n[PIPELINE ABORTED] Phase '{label}' failed with exit code {rc}.")
+            return rc
+
+    print("\n==================================================")
+    print("       PIPELINE COMPLETE: ALL PHASES SUCCEEDED     ")
+    print("==================================================")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Construct CLI argument parser."""
     parser = argparse.ArgumentParser(
@@ -326,6 +517,11 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("check", help="Check required software and Cloudflare access")
     subparsers.add_parser("install", help="Install toolchain into cache directory")
     subparsers.add_parser("login", help="Log in to Cloudflare via wrangler")
+    subparsers.add_parser("codegen", help="Compile TypeSpec REST definitions")
+    subparsers.add_parser("build", help="Build frontend and backend artifacts")
+    subparsers.add_parser("migrate", help="Apply SQL migrations to staging D1 database")
+    subparsers.add_parser("publish", help="Publish Worker and Pages to Cloudflare staging")
+    subparsers.add_parser("staging", help="Run full staging pipeline (rebuild, codegen, migrate, publish)")
 
     return parser
 
@@ -336,12 +532,23 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
-    if args.command == "check":
-        sys.exit(run_check_command())
-    elif args.command == "install":
-        sys.exit(run_install_command())
-    elif args.command == "login":
-        sys.exit(run_login_command())
+    commands = {
+        "check": run_check_command,
+        "install": run_install_command,
+        "login": run_login_command,
+        "codegen": run_codegen_command,
+        "build": run_build_command,
+        "migrate": run_migrate_command,
+        "publish": run_publish_command,
+        "staging": run_staging_command,
+    }
+
+    handler = commands.get(args.command)
+    if handler:
+        sys.exit(handler())
+    else:
+        parser.print_help()
+        sys.exit(1)
 
 
 if __name__ == "__main__":

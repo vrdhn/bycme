@@ -1,10 +1,15 @@
 # Wrangler local cache and state
-.wrangler/
+.wrangler
+**/.wrangler
 
 # Python cache
-__pycache__/
+__pycache__
 *.py[cod]
 
-# Dependencies and local caches
-node_modules/
-.cache/
+# Dependencies and build outputs
+node_modules
+**/node_modules
+dist
+**/dist
+.cache
+**/.cache

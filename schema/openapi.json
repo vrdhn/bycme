@@ -1,0 +1,393 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Bycme Bicycle Sharing API",
+    "version": "0.0.0"
+  },
+  "tags": [],
+  "paths": {
+    "/api/bikes": {
+      "get": {
+        "operationId": "BikeOperations_listBikes",
+        "parameters": [
+          {
+            "name": "stationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Bike"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bikes/{id}": {
+      "get": {
+        "operationId": "BikeOperations_getBike",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Bike"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "HealthOperations_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rides": {
+      "get": {
+        "operationId": "RideOperations_listActiveRides",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Ride"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "RideOperations_startRide",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ride"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRideRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rides/{id}/end": {
+      "post": {
+        "operationId": "RideOperations_endRide",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ride"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EndRideRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stations": {
+      "get": {
+        "operationId": "StationOperations_listStations",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Station"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stations/{id}": {
+      "get": {
+        "operationId": "StationOperations_getStation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Station"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Bike": {
+        "type": "object",
+        "required": [
+          "id",
+          "stationId",
+          "bikeModel",
+          "batteryLevel",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "stationId": {
+            "type": "string"
+          },
+          "bikeModel": {
+            "type": "string"
+          },
+          "batteryLevel": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BikeStatus"
+          }
+        }
+      },
+      "BikeStatus": {
+        "type": "string",
+        "enum": [
+          "available",
+          "inUse",
+          "maintenance"
+        ]
+      },
+      "EndRideRequest": {
+        "type": "object",
+        "required": [
+          "endStationId"
+        ],
+        "properties": {
+          "endStationId": {
+            "type": "string"
+          }
+        }
+      },
+      "HealthStatus": {
+        "type": "object",
+        "required": [
+          "status",
+          "timestamp",
+          "environment"
+        ],
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "environment": {
+            "type": "string"
+          }
+        }
+      },
+      "Ride": {
+        "type": "object",
+        "required": [
+          "id",
+          "bikeId",
+          "userId",
+          "startStationId",
+          "startTime",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "bikeId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          },
+          "startStationId": {
+            "type": "string"
+          },
+          "endStationId": {
+            "type": "string"
+          },
+          "startTime": {
+            "type": "string"
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RideStatus"
+          },
+          "cost": {
+            "type": "number",
+            "format": "float"
+          }
+        }
+      },
+      "RideStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "completed"
+        ]
+      },
+      "StartRideRequest": {
+        "type": "object",
+        "required": [
+          "bikeId",
+          "userId"
+        ],
+        "properties": {
+          "bikeId": {
+            "type": "string"
+          },
+          "userId": {
+            "type": "string"
+          }
+        }
+      },
+      "Station": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "latitude",
+          "longitude",
+          "totalDocks",
+          "availableBikes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "latitude": {
+            "type": "number",
+            "format": "float"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "float"
+          },
+          "totalDocks": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "availableBikes": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://bycme-staging.pages.dev",
+      "description": "Staging environment",
+      "variables": {}
+    }
+  ]
+}

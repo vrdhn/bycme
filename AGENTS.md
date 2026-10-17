@@ -36,3 +36,16 @@
 
 ## Version Control
 - Commit messages: must include summary of user prompts included in the commit
+
+## Standing Instructions & Active Architecture
+- Toolchain cache: strictly maintained at `~/.cache/bycme-repo/` (overridable via `BYCME_CACHE_DIR`)
+- CLI Driver: `btool` (Python 3, standard library only)
+- Directory Isolation:
+  - `typespec/`: REST API contracts (`main.tsp`)
+  - `schema/`: Generated OpenAPI specifications (`openapi.json`)
+  - `sqlsource/`: SQL migrations (`sqlsource/migrations/*.sql`)
+  - `shared/`: Generated TypeScript client and models
+  - `backend/`: Cloudflare Worker API connected to D1
+  - `frontend/`: React SPA built with Vite
+- Database Migrations: Cloudflare D1 native migrations applied via `wrangler d1 migrations apply`
+- Staging Workflow: `./btool staging` executes preflight check, codegen, build, migration, and publish

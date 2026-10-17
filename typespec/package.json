@@ -1,0 +1,12 @@
+{
+  "name": "@bycme/typespec",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TypeSpec REST API definition for Bycme bike sharing",
+  "dependencies": {
+    "@typespec/compiler": "^1.17.0",
+    "@typespec/http": "^1.17.0",
+    "@typespec/openapi3": "^1.17.0",
+    "@typespec/rest": "^1.17.0"
+  }
+}

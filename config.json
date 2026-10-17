@@ -1,7 +1,9 @@
 {
   "environments": {
     "staging": {
-      "project": "bycme-staging"
+      "project": "bycme-staging",
+      "d1_database": "bycme-staging-db",
+      "d1_database_id": "45b8f0fa-d419-4849-8739-794aaa44c4ba"
     }
   }
 }
