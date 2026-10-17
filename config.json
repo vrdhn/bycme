@@ -1,0 +1,7 @@
+{
+  "environments": {
+    "staging": {
+      "project": "bycme-staging"
+    }
+  }
+}

@@ -2,6 +2,7 @@
 """Developer workflow driver for bycme repository."""
 
 import argparse
+import json
 import os
 import platform
 import shutil
@@ -175,34 +176,85 @@ def check_tool(name: str, version_args: list[str]) -> tuple[bool, str]:
         return False, f"Error: {exc}"
 
 
-def check_cloudflare_access() -> tuple[bool, str]:
-    """Verify Cloudflare authentication via wrangler non-interactively."""
+REPO_ROOT = Path(__file__).resolve().parent
+CONFIG_PATH = REPO_ROOT / "config.json"
+
+
+def load_config() -> dict:
+    """Load configuration dictionary from repository config.json."""
+    if not CONFIG_PATH.exists():
+        return {}
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as file:
+            return json.load(file)
+    except Exception:
+        return {}
+
+
+def get_staging_project(config: dict) -> str:
+    """Extract staging project identifier from configuration."""
+    envs = config.get("environments", {})
+    if isinstance(envs, dict) and "staging" in envs:
+        staging = envs["staging"]
+        if isinstance(staging, dict):
+            return staging.get("project", "")
+    if "staging_project" in config:
+        return str(config["staging_project"])
+    return ""
+
+
+def fetch_cloudflare_identity() -> dict | None:
+    """Query Cloudflare identity data via wrangler in JSON format."""
     wrangler_path = shutil.which("wrangler")
     if not wrangler_path:
-        return False, "wrangler not found; run './btool install'"
-
+        return None
     try:
         env = {**os.environ, "CI": "true"}
         proc = subprocess.run(
-            [wrangler_path, "whoami"],
+            [wrangler_path, "whoami", "--json"],
             capture_output=True,
             text=True,
             check=False,
             timeout=10,
             env=env,
         )
-        combined = f"{proc.stdout}\n{proc.stderr}"
-        if proc.returncode == 0 and "You are logged in" in combined:
-            lines = [line.strip() for line in combined.splitlines() if line.strip() and not line.startswith("⛅")]
-            details = ", ".join(lines[:2]) if lines else "Authenticated"
-            return True, details
-        return False, "Not authenticated. Run 'wrangler login' or set CLOUDFLARE_API_TOKEN"
-    except Exception as exc:
-        return False, f"Error checking Cloudflare access: {exc}"
+        if proc.returncode == 0 and proc.stdout:
+            return json.loads(proc.stdout)
+    except Exception:
+        pass
+    return None
+
+
+def check_cloudflare_access(identity: dict | None) -> tuple[bool, str]:
+    """Verify general Cloudflare authentication status."""
+    wrangler_path = shutil.which("wrangler")
+    if not wrangler_path:
+        return False, "wrangler not found; run './btool install'"
+    if identity and identity.get("loggedIn"):
+        email = identity.get("email", "unknown")
+        auth_type = identity.get("authType", "token")
+        return True, f"{email} ({auth_type})"
+    return False, "Not authenticated. Run './btool login' or set CLOUDFLARE_API_TOKEN"
+
+
+def check_project_access(identity: dict | None, project_name: str) -> tuple[bool, str]:
+    """Verify access to specified project or account name."""
+    if not project_name:
+        return False, "Missing staging project in config.json"
+    if not identity or not identity.get("loggedIn"):
+        return False, "Requires Cloudflare login; run './btool login'"
+
+    accounts = identity.get("accounts", [])
+    for acc in accounts:
+        if acc.get("name") == project_name or acc.get("id") == project_name:
+            acc_id = acc.get("id", "unknown")
+            return True, f"Accessible under account '{project_name}' (ID: {acc_id})"
+
+    return False, f"Project '{project_name}' not found in Cloudflare accounts"
 
 
 def run_check_command() -> int:
-    """Execute environment and access checks."""
+    """Execute environment, Cloudflare, and project access checks."""
     print("=== Tool Availability Check ===")
     tools = [
         ("node", ["--version"]),
@@ -219,11 +271,23 @@ def run_check_command() -> int:
         if not ok:
             all_passed = False
 
+    config = load_config()
+    staging_project = get_staging_project(config)
+
     print("\n=== Cloudflare Access Check ===")
-    cf_ok, cf_details = check_cloudflare_access()
+    identity = fetch_cloudflare_identity()
+    cf_ok, cf_details = check_cloudflare_access(identity)
     cf_status = "OK" if cf_ok else "FAIL"
     print(f"[{cf_status}] Cloudflare : {cf_details}")
     if not cf_ok:
+        all_passed = False
+
+    print("\n=== Project Access Check ===")
+    proj_ok, proj_details = check_project_access(identity, staging_project)
+    proj_status = "OK" if proj_ok else "FAIL"
+    target_label = staging_project if staging_project else "(none)"
+    print(f"[{proj_status}] Staging ({target_label}): {proj_details}")
+    if not proj_ok:
         all_passed = False
 
     return 0 if all_passed else 1
