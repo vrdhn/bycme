@@ -16,9 +16,9 @@ Driver script: `./btool` (Python 3 standard library only).
 | `./btool codegen` | Compile `typespec/` into OpenAPI schema and shared client in `generated/` |
 | `./btool verify` | Assert generated files match TypeSpec contract and flag any drift (for CI) |
 | `./btool build` | Compile frontend React application with Vite into `frontend/dist` |
-| `./btool migrate` | Apply pending SQL migrations to remote Cloudflare D1 database |
-| `./btool publish` | Deploy backend Worker and frontend Pages to Cloudflare |
-| `./btool staging` | Execute full pipeline: preflight -> codegen -> build -> migrate -> publish |
+| `./btool migrate [--env <name>]` | Apply pending SQL migrations to Cloudflare D1 database (default: `staging`) |
+| `./btool publish [--env <name>]` | Deploy backend Worker and frontend Pages to Cloudflare (default: `staging`) |
+| `./btool staging [--env <name>]` | Execute full deployment pipeline: preflight -> codegen -> build -> migrate -> publish |
 
 ---
 

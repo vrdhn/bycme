@@ -200,26 +200,42 @@ def load_config() -> dict:
         return {}
 
 
+def get_environment_config(config: dict, env_name: str) -> dict:
+    """Retrieve environment configuration dictionary by name."""
+    envs = config.get("environments", {})
+    if isinstance(envs, dict) and env_name in envs:
+        val = envs[env_name]
+        if isinstance(val, dict):
+            return val
+    return {}
+
+
 def get_staging_project(config: dict) -> str:
     """Extract staging project identifier from configuration."""
-    envs = config.get("environments", {})
-    if isinstance(envs, dict) and "staging" in envs:
-        staging = envs["staging"]
-        if isinstance(staging, dict):
-            return staging.get("project", "")
-    if "staging_project" in config:
-        return str(config["staging_project"])
-    return ""
+    return get_env_project(config, "staging")
 
 
 def get_staging_db(config: dict) -> str:
     """Extract staging D1 database name from configuration."""
-    envs = config.get("environments", {})
-    if isinstance(envs, dict) and "staging" in envs:
-        staging = envs["staging"]
-        if isinstance(staging, dict):
-            return staging.get("d1_database", "bycme-staging-db")
-    return "bycme-staging-db"
+    return get_env_db(config, "staging")
+
+
+def get_env_project(config: dict, env_name: str) -> str:
+    """Extract project identifier for given environment."""
+    env_cfg = get_environment_config(config, env_name)
+    if "project" in env_cfg:
+        return str(env_cfg["project"])
+    if env_name == "staging" and "staging_project" in config:
+        return str(config["staging_project"])
+    return f"bycme-{env_name}"
+
+
+def get_env_db(config: dict, env_name: str) -> str:
+    """Extract D1 database name for given environment."""
+    env_cfg = get_environment_config(config, env_name)
+    if "d1_database" in env_cfg:
+        return str(env_cfg["d1_database"])
+    return f"bycme-{env_name}-db"
 
 
 def fetch_cloudflare_identity() -> dict | None:
@@ -446,16 +462,16 @@ def run_build_command() -> int:
     return 0
 
 
-def run_migrate_command() -> int:
+def run_migrate_command(env_name: str = "staging") -> int:
     """Apply pending SQL migrations to Cloudflare D1 database."""
-    print("\n=== [Migrate] Applying D1 Database Migrations ===")
+    print(f"\n=== [Migrate] Applying D1 Database Migrations ({env_name}) ===")
     wrangler_path = shutil.which("wrangler")
     if not wrangler_path:
         print("[FAIL] wrangler not found; run './btool install'")
         return 1
 
     config = load_config()
-    db_name = get_staging_db(config)
+    db_name = get_env_db(config, env_name)
     backend_dir = REPO_ROOT / "backend"
 
     print(f"Applying pending migrations from sqlsource/migrations/ to '{db_name}' ...")
@@ -477,16 +493,16 @@ def run_migrate_command() -> int:
     return 0
 
 
-def run_publish_command() -> int:
+def run_publish_command(env_name: str = "staging") -> int:
     """Deploy backend Worker and frontend Pages to Cloudflare."""
-    print("\n=== [Publish] Deploying Backend Worker and Frontend Pages ===")
+    print(f"\n=== [Publish] Deploying Backend Worker and Frontend Pages ({env_name}) ===")
     wrangler_path = shutil.which("wrangler")
     if not wrangler_path:
         print("[FAIL] wrangler not found; run './btool install'")
         return 1
 
     config = load_config()
-    project = get_staging_project(config)
+    project = get_env_project(config, env_name)
     backend_dir = REPO_ROOT / "backend"
     frontend_dist = REPO_ROOT / "frontend" / "dist"
 
@@ -522,22 +538,22 @@ def run_publish_command() -> int:
         print("[FAIL] Frontend Pages deployment failed.")
         return proc_pages.returncode
 
-    print(f"[OK] Published successfully to staging ({project}).")
+    print(f"[OK] Published successfully to {env_name} ({project}).")
     return 0
 
 
-def run_staging_command() -> int:
-    """Execute complete staging pipeline: check, codegen, build, migrate, and publish."""
+def run_staging_command(env_name: str = "staging") -> int:
+    """Execute complete deployment pipeline: check, codegen, build, migrate, and publish."""
     print("==================================================")
-    print("         BYCME STAGING PIPELINE EXECUTION         ")
+    print(f"         BYCME {env_name.upper()} PIPELINE EXECUTION         ")
     print("==================================================")
 
     steps = [
         ("Preflight Check", run_check_command),
         ("TypeSpec Codegen", run_codegen_command),
         ("Artifact Build", run_build_command),
-        ("D1 Migrations", run_migrate_command),
-        ("Cloudflare Publish", run_publish_command),
+        ("D1 Migrations", lambda: run_migrate_command(env_name)),
+        ("Cloudflare Publish", lambda: run_publish_command(env_name)),
     ]
 
     for label, action in steps:
@@ -552,13 +568,70 @@ def run_staging_command() -> int:
     return 0
 
 
+def get_configured_environments() -> dict[str, dict]:
+    """Retrieve mapping of configured environments from config.json."""
+    config = load_config()
+    envs = config.get("environments", {})
+    if isinstance(envs, dict) and envs:
+        return envs
+    return {}
+
+
+def format_custom_help() -> str:
+    """Generate categorized CLI help text including configured environments."""
+    lines = [
+        "Usage: ./btool <command> [options]",
+        "",
+        "Developer workflow driver for bycme repository.",
+        "",
+        "Toolchain & Setup:",
+        "  install            Install node, wrangler, and typespec into toolchain cache",
+        "  check              Validate local toolchain dependencies and Cloudflare access",
+        "  login              Authenticate interactive session with Cloudflare via wrangler",
+        "",
+        "Contract & Build:",
+        "  codegen            Compile TypeSpec REST definitions into OpenAPI and shared models",
+        "  verify             Assert generated artifacts match contracts without drift (for CI)",
+        "  build              Build frontend React SPA and verify worker bundle",
+        "",
+        "Deployment & Operations:",
+        "  migrate            Apply pending SQL migrations to D1 database (--env <name>)",
+        "  publish            Deploy backend Worker and frontend Pages to Cloudflare (--env <name>)",
+        "  staging            Execute complete staging pipeline (check -> codegen -> build -> migrate -> publish)",
+        "",
+        "Options:",
+        "  --env <name>       Target environment for migrate, publish, and staging (default: staging)",
+        "  -h, --help         Show this help message and exit",
+        "",
+        "Configured Environments (from config.json):",
+    ]
+
+    envs = get_configured_environments()
+    if envs:
+        for name, details in envs.items():
+            lines.append(f"  [{name}]")
+            if isinstance(details, dict):
+                for k, v in details.items():
+                    key_label = k.replace("_", " ").title()
+                    lines.append(f"    {key_label + ':':<18} {v}")
+            else:
+                lines.append(f"    {details}")
+    else:
+        lines.append("  (No environments configured in config.json)")
+
+    return "\n".join(lines)
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Construct CLI argument parser."""
     parser = argparse.ArgumentParser(
         prog="btool",
         description="bycme developer interaction tool",
+        add_help=True,
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    parser.format_help = format_custom_help
+    parser.add_argument("--env", default="staging", help="Target environment (default: staging)")
+    subparsers = parser.add_subparsers(dest="command", required=False)
 
     subparsers.add_parser("check", help="Check required software and Cloudflare access")
     subparsers.add_parser("install", help="Install toolchain into cache directory")
@@ -566,9 +639,17 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("codegen", help="Compile TypeSpec REST definitions")
     subparsers.add_parser("verify", help="Verify generated files match TypeSpec contract (for CI)")
     subparsers.add_parser("build", help="Build frontend and backend artifacts")
-    subparsers.add_parser("migrate", help="Apply SQL migrations to staging D1 database")
-    subparsers.add_parser("publish", help="Publish Worker and Pages to Cloudflare staging")
-    subparsers.add_parser("staging", help="Run full staging pipeline (rebuild, codegen, migrate, publish)")
+
+    migrate_p = subparsers.add_parser("migrate", help="Apply SQL migrations to D1 database")
+    migrate_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
+
+    publish_p = subparsers.add_parser("publish", help="Publish Worker and Pages to Cloudflare")
+    publish_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
+
+    staging_p = subparsers.add_parser("staging", help="Run full pipeline (check, codegen, build, migrate, publish)")
+    staging_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
+
+    subparsers.add_parser("help", help="Show categorized help and environment details")
 
     return parser
 
@@ -576,8 +657,18 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     """Main CLI entrypoint."""
     prepend_bin_to_path()
+    if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] in ("-h", "--help", "help")):
+        print(format_custom_help())
+        sys.exit(0)
+
     parser = build_parser()
     args = parser.parse_args()
+
+    if not args.command or args.command == "help":
+        print(format_custom_help())
+        sys.exit(0)
+
+    target_env = getattr(args, "env", "staging")
 
     commands = {
         "check": run_check_command,
@@ -586,16 +677,16 @@ def main() -> None:
         "codegen": run_codegen_command,
         "verify": run_verify_command,
         "build": run_build_command,
-        "migrate": run_migrate_command,
-        "publish": run_publish_command,
-        "staging": run_staging_command,
+        "migrate": lambda: run_migrate_command(target_env),
+        "publish": lambda: run_publish_command(target_env),
+        "staging": lambda: run_staging_command(target_env),
     }
 
     handler = commands.get(args.command)
     if handler:
         sys.exit(handler())
     else:
-        parser.print_help()
+        print(format_custom_help())
         sys.exit(1)
 
 
