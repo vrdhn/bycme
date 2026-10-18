@@ -493,6 +493,104 @@ def run_migrate_command(env_name: str = "staging") -> int:
     return 0
 
 
+def run_dbdrop_command(env_name: str = "staging", auto_confirm: bool = False) -> int:
+    """Drop all tables, views, and migration state in staging D1 database."""
+    if env_name != "staging":
+        print(f"[FAIL] dbdrop is strictly prohibited for environment '{env_name}'. It is only available for 'staging'.")
+        return 1
+
+    wrangler_path = shutil.which("wrangler")
+    if not wrangler_path:
+        print("[FAIL] wrangler not found; run './btool install'")
+        return 1
+
+    config = load_config()
+    db_name = get_env_db(config, "staging")
+    backend_dir = REPO_ROOT / "backend"
+
+    print("\n=== [dbdrop] Drop Staging D1 Database Tables ===")
+    print(f"Target Database: {db_name} (staging)")
+
+    if not auto_confirm:
+        try:
+            prompt = f"Are you sure you want to drop all tables in '{db_name}'? [y/N]: "
+            sys.stdout.write(prompt)
+            sys.stdout.flush()
+            ans = sys.stdin.readline().strip().lower()
+            if ans not in ("y", "yes"):
+                print("[ABORTED] Database drop cancelled by user.")
+                return 0
+        except KeyboardInterrupt:
+            print("\n[ABORTED] Database drop cancelled.")
+            return 1
+
+    env = {**os.environ, "CI": "true"}
+
+    query_cmd = [
+        wrangler_path,
+        "d1",
+        "execute",
+        db_name,
+        "--remote",
+        "--command=SELECT name, type FROM sqlite_schema WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%';",
+        "--json",
+    ]
+    proc = subprocess.run(query_cmd, cwd=backend_dir, env=env, capture_output=True, text=True, check=False)
+    if proc.returncode != 0:
+        print(f"[FAIL] Could not query database schema: {proc.stderr or proc.stdout}")
+        return proc.returncode
+
+    try:
+        data = json.loads(proc.stdout)
+        results = data[0].get("results", []) if data and isinstance(data, list) else []
+    except Exception as exc:
+        print(f"[FAIL] Failed to parse schema query result: {exc}")
+        return 1
+
+    if not results:
+        print(f"[OK] Database '{db_name}' has no user tables to drop.")
+        return 0
+
+    print(f"Dropping {len(results)} object(s) from '{db_name}' ...")
+    drop_queue = list(results)
+    max_passes = len(drop_queue) + 1
+    current_pass = 0
+
+    while drop_queue and current_pass < max_passes:
+        current_pass += 1
+        remaining: list[dict] = []
+        for item in drop_queue:
+            t_name = item.get("name")
+            t_type = item.get("type", "table").upper()
+            if not t_name:
+                continue
+            drop_cmd = [
+                wrangler_path,
+                "d1",
+                "execute",
+                db_name,
+                "--remote",
+                f"--command=DROP {t_type} IF EXISTS \"{t_name}\";",
+            ]
+            res = subprocess.run(drop_cmd, cwd=backend_dir, env=env, capture_output=True, text=True, check=False)
+            if res.returncode != 0:
+                remaining.append(item)
+            else:
+                print(f"  [DELETED] {t_type.lower()}: {t_name}")
+
+        if len(remaining) == len(drop_queue):
+            print(f"[FAIL] Unable to resolve foreign key constraints while dropping: {[x.get('name') for x in remaining]}")
+            return 1
+        drop_queue = remaining
+
+    if drop_queue:
+        print(f"[FAIL] Could not drop all objects in '{db_name}'. Remaining: {[x.get('name') for x in drop_queue]}")
+        return 1
+
+    print(f"[OK] Staging database '{db_name}' tables and migration state dropped successfully.")
+    return 0
+
+
 def run_publish_command(env_name: str = "staging") -> int:
     """Deploy backend Worker and frontend Pages to Cloudflare."""
     print(f"\n=== [Publish] Deploying Backend Worker and Frontend Pages ({env_name}) ===")
@@ -598,6 +696,7 @@ def format_custom_help() -> str:
         "  migrate            Apply pending SQL migrations to D1 database (--env <name>)",
         "  publish            Deploy backend Worker and frontend Pages to Cloudflare (--env <name>)",
         "  staging            Execute complete staging pipeline (check -> codegen -> build -> migrate -> publish)",
+        "  dbdrop             Drop all tables and migration state in D1 database (staging only)",
         "",
         "Options:",
         "  --env <name>       Target environment for migrate, publish, and staging (default: staging)",
@@ -649,6 +748,10 @@ def build_parser() -> argparse.ArgumentParser:
     staging_p = subparsers.add_parser("staging", help="Run full pipeline (check, codegen, build, migrate, publish)")
     staging_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
 
+    dbdrop_p = subparsers.add_parser("dbdrop", help="Drop all tables and migration state in staging D1 database (staging only)")
+    dbdrop_p.add_argument("--env", default="staging", help="Target environment (strictly 'staging')")
+    dbdrop_p.add_argument("-y", "--yes", action="store_true", help="Confirm database drop without interactive prompt")
+
     subparsers.add_parser("help", help="Show categorized help and environment details")
 
     return parser
@@ -680,6 +783,7 @@ def main() -> None:
         "migrate": lambda: run_migrate_command(target_env),
         "publish": lambda: run_publish_command(target_env),
         "staging": lambda: run_staging_command(target_env),
+        "dbdrop": lambda: run_dbdrop_command(target_env, auto_confirm=getattr(args, "yes", False)),
     }
 
     handler = commands.get(args.command)

@@ -19,6 +19,7 @@ Driver script: `./btool` (Python 3 standard library only).
 | `./btool migrate [--env <name>]` | Apply pending SQL migrations to Cloudflare D1 database (default: `staging`) |
 | `./btool publish [--env <name>]` | Deploy backend Worker and frontend Pages to Cloudflare (default: `staging`) |
 | `./btool staging [--env <name>]` | Execute full deployment pipeline: preflight -> codegen -> build -> migrate -> publish |
+| `./btool dbdrop [-y]` | Drop all tables and migrations in D1 database (strictly `staging` only) |
 
 ---
 
