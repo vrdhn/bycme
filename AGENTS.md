@@ -42,10 +42,12 @@
 - CLI Driver: `btool` (Python 3, standard library only)
 - Directory Isolation:
   - `typespec/`: REST API contracts (`main.tsp`)
-  - `schema/`: Generated OpenAPI specifications (`openapi.json`)
+  - `generated/`: Machine-generated artifacts (strictly automated, no manual edits)
+    - `generated/schema/`: Generated OpenAPI specifications (`openapi.json`)
+    - `generated/shared/`: Generated TypeScript client and models (`index.ts`)
   - `sqlsource/`: SQL migrations (`sqlsource/migrations/*.sql`)
-  - `shared/`: Generated TypeScript client and models
   - `backend/`: Cloudflare Worker API connected to D1
   - `frontend/`: React SPA built with Vite
 - Database Migrations: Cloudflare D1 native migrations applied via `wrangler d1 migrations apply`
 - Staging Workflow: `./btool staging` executes preflight check, codegen, build, migration, and publish
+- CI Verification: `./btool verify` asserts generated files match TypeSpec contract and detects drift

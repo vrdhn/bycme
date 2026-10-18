@@ -13,7 +13,8 @@ Driver script: `./btool` (Python 3 standard library only).
 | `./btool install` | Download and configure Node.js, wrangler, and TypeSpec in `~/.cache/bycme-repo/` |
 | `./btool check` | Verify binaries, Cloudflare authentication, and project access |
 | `./btool login` | Authenticate with Cloudflare via interactive `wrangler login` |
-| `./btool codegen` | Compile `typespec/` into OpenAPI schema and shared client |
+| `./btool codegen` | Compile `typespec/` into OpenAPI schema and shared client in `generated/` |
+| `./btool verify` | Assert generated files match TypeSpec contract and flag any drift (for CI) |
 | `./btool build` | Compile frontend React application with Vite into `frontend/dist` |
 | `./btool migrate` | Apply pending SQL migrations to remote Cloudflare D1 database |
 | `./btool publish` | Deploy backend Worker and frontend Pages to Cloudflare |
@@ -26,9 +27,10 @@ Driver script: `./btool` (Python 3 standard library only).
 | Directory / File | Responsibility |
 | :--- | :--- |
 | `typespec/` | REST API specifications (`main.tsp`) |
-| `schema/` | Generated OpenAPI 3.0 specification (`openapi.json`) |
+| `generated/` | Machine-generated code and specs (strictly automated, do not edit manually) |
+| ├── `generated/schema/` | Generated OpenAPI 3.0 specification (`openapi.json`) |
+| └── `generated/shared/` | Shared TypeScript domain models and API client (`index.ts`) |
 | `sqlsource/` | Relational SQL migrations and seed data (`migrations/`) |
-| `shared/` | Shared TypeScript domain models and API client (`index.ts`) |
 | `backend/` | Cloudflare Worker application and `wrangler.jsonc` |
 | `frontend/` | React single-page application built with Vite |
 | `config.json` | Environment resource identifiers (project name, D1 database ID) |
@@ -54,9 +56,10 @@ Driver script: `./btool` (Python 3 standard library only).
 - Contract source: `typespec/main.tsp`.
 - Compiler: `@typespec/compiler` with `@typespec/openapi3`.
 - Configuration: `typespec/tspconfig.yaml`.
-- Artifact output: `schema/openapi.json`.
-- Client bindings: `shared/index.ts` provides typed interfaces and `BycmeClient` for frontend and backend consumption.
+- Artifact output: `generated/schema/openapi.json`.
+- Client bindings: `generated/shared/index.ts` provides typed interfaces and `BycmeClient` for frontend and backend consumption.
 - Regeneration command: `./btool codegen`.
+- Verification command: `./btool verify`.
 
 ---
 
@@ -66,7 +69,7 @@ Driver script: `./btool` (Python 3 standard library only).
 - Directory: `frontend/`.
 - Build output: `frontend/dist/`.
 - Deployment target: Cloudflare Pages (`bycme-staging.pages.dev`).
-- State and API: consumes `BycmeClient` from `shared/` targeting backend API endpoints.
+- State and API: consumes `BycmeClient` from `generated/shared/` targeting backend API endpoints.
 
 ---
 

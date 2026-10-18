@@ -1,6 +1,8 @@
 /**
+ * @generated
+ * AUTO-GENERATED FILE. DO NOT EDIT DIRECTLY.
  * Generated types and API client for Bycme Bicycle Sharing.
- * Source: typespec/main.tsp -> schema/openapi.json
+ * Source: typespec/main.tsp -> generated/schema/openapi.json
  */
 
 export type BikeStatus = "available" | "in_use" | "maintenance";

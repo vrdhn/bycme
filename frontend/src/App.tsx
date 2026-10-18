@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Station, Bike, Ride, BycmeClient } from "../../shared";
+import { Station, Bike, Ride, BycmeClient } from "../../generated/shared";
 
 const API_BASE = "https://bycme-staging.bycme-backend.workers.dev";
 const client = new BycmeClient(API_BASE);

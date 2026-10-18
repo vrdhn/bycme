@@ -360,12 +360,58 @@ def run_codegen_command() -> int:
         print("[FAIL] TypeSpec compilation failed.")
         return proc.returncode
 
-    schema_file = REPO_ROOT / "schema" / "openapi.json"
+    schema_file = REPO_ROOT / "generated" / "schema" / "openapi.json"
     if schema_file.exists():
         print(f"[OK] OpenAPI schema generated at: {schema_file}")
     else:
         print("[FAIL] Schema output not found.")
         return 1
+    return 0
+
+
+def check_generated_drift() -> tuple[bool, str]:
+    """Check git status and diff on generated directory."""
+    proc = subprocess.run(
+        ["git", "status", "--porcelain", "generated"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return False, f"Git status command failed with exit code {proc.returncode}"
+    status_output = proc.stdout.strip()
+    if status_output:
+        diff_proc = subprocess.run(
+            ["git", "diff", "generated"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        diff_output = diff_proc.stdout.strip()
+        details = diff_output if diff_output else status_output
+        return False, details
+    return True, ""
+
+
+def run_verify_command() -> int:
+    """Verify generated artifacts match TypeSpec contract without drift."""
+    print("=== [Verify] Checking Generated Artifacts Integrity ===")
+    rc = run_codegen_command()
+    if rc != 0:
+        print("[FAIL] Codegen step failed during verification.")
+        return rc
+
+    clean, diff_text = check_generated_drift()
+    if not clean:
+        print("[FAIL] Generated files drift detected:")
+        print(diff_text)
+        print("\nGenerated files are out of sync with TypeSpec definition or modified manually.")
+        print("Run './btool codegen' locally and commit the resulting generated files.")
+        return 1
+
+    print("[OK] Generated files match contract definitions.")
     return 0
 
 
@@ -518,6 +564,7 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("install", help="Install toolchain into cache directory")
     subparsers.add_parser("login", help="Log in to Cloudflare via wrangler")
     subparsers.add_parser("codegen", help="Compile TypeSpec REST definitions")
+    subparsers.add_parser("verify", help="Verify generated files match TypeSpec contract (for CI)")
     subparsers.add_parser("build", help="Build frontend and backend artifacts")
     subparsers.add_parser("migrate", help="Apply SQL migrations to staging D1 database")
     subparsers.add_parser("publish", help="Publish Worker and Pages to Cloudflare staging")
@@ -537,6 +584,7 @@ def main() -> None:
         "install": run_install_command,
         "login": run_login_command,
         "codegen": run_codegen_command,
+        "verify": run_verify_command,
         "build": run_build_command,
         "migrate": run_migrate_command,
         "publish": run_publish_command,
