@@ -591,6 +591,129 @@ def run_dbdrop_command(env_name: str = "staging", auto_confirm: bool = False) ->
     return 0
 
 
+def run_dbseed_command(env_name: str = "staging") -> int:
+    """Populate staging D1 database with test accounts, buildings, parkings, and cycles."""
+    if env_name != "staging":
+        print(f"[FAIL] dbseed is strictly prohibited for environment '{env_name}'. It is only available for 'staging'.")
+        return 1
+
+    wrangler_path = shutil.which("wrangler")
+    if not wrangler_path:
+        print("[FAIL] wrangler not found; run './btool install'")
+        return 1
+
+    config = load_config()
+    db_name = get_env_db(config, "staging")
+    backend_dir = REPO_ROOT / "backend"
+
+    print("\n=== [dbseed] Seeding Staging D1 Database ===")
+    print(f"Target Database: {db_name} (staging)")
+
+    # Ensure schema migrations exist first
+    print("Ensuring latest schema migrations are applied ...")
+    mig_rc = run_migrate_command("staging")
+    if mig_rc != 0:
+        print("[FAIL] Migration failed before seeding.")
+        return mig_rc
+
+    seed_statements = [
+        # 1. 10 Indian User Accounts (all passwords 'test')
+        "INSERT OR REPLACE INTO persons (id, name, email, password_hash) VALUES "
+        "('usr-aarav', 'Aarav Sharma', 'aarav@bycme.local', 'test'), "
+        "('usr-priya', 'Priya Patel', 'priya@bycme.local', 'test'), "
+        "('usr-rohan', 'Rohan Verma', 'rohan@bycme.local', 'test'), "
+        "('usr-ananya', 'Ananya Iyer', 'ananya@bycme.local', 'test'), "
+        "('usr-vikram', 'Vikram Singh', 'vikram@bycme.local', 'test'), "
+        "('usr-neha', 'Neha Gupta', 'neha@bycme.local', 'test'), "
+        "('usr-rahul', 'Rahul Nair', 'rahul@bycme.local', 'test'), "
+        "('usr-pooja', 'Pooja Reddy', 'pooja@bycme.local', 'test'), "
+        "('usr-aditya', 'Aditya Joshi', 'aditya@bycme.local', 'test'), "
+        "('usr-kavita', 'Kavita Rao', 'kavita@bycme.local', 'test');",
+
+        # 2. Roles: 1 Admin, 3 Managers, all 10 as Riders
+        "INSERT OR IGNORE INTO person_roles (person_id, role) VALUES "
+        "('usr-aarav', 'Admin'), "
+        "('usr-priya', 'Manager'), "
+        "('usr-rohan', 'Manager'), "
+        "('usr-ananya', 'Manager'), "
+        "('usr-aarav', 'Rider'), "
+        "('usr-priya', 'Rider'), "
+        "('usr-rohan', 'Rider'), "
+        "('usr-ananya', 'Rider'), "
+        "('usr-vikram', 'Rider'), "
+        "('usr-neha', 'Rider'), "
+        "('usr-rahul', 'Rider'), "
+        "('usr-pooja', 'Rider'), "
+        "('usr-aditya', 'Rider'), "
+        "('usr-kavita', 'Rider');",
+
+        # 3. Buildings: Private & Public
+        "INSERT OR REPLACE INTO buildings (id, name, building_type) VALUES "
+        "('bld-tech-park', 'TechMahindra Innovation Park', 'Private'), "
+        "('bld-civic-center', 'Indira Gandhi Civic Complex', 'Public');",
+
+        # 4. Parkings
+        "INSERT OR REPLACE INTO parkings (id, building_id, name, capacity) VALUES "
+        "('prk-tm-tower-a', 'bld-tech-park', 'TechMahindra Tower A Stand', 20), "
+        "('prk-tm-tower-b', 'bld-tech-park', 'TechMahindra Tower B Stand', 15), "
+        "('prk-civic-metro', 'bld-civic-center', 'Civic Plaza Metro Stand', 30), "
+        "('prk-civic-north', 'bld-civic-center', 'Civic Plaza North Hub', 25);",
+
+        # 5. Parking Managers
+        "INSERT OR IGNORE INTO parking_managers (parking_id, manager_id) VALUES "
+        "('prk-tm-tower-a', 'usr-priya'), "
+        "('prk-tm-tower-a', 'usr-rohan'), "
+        "('prk-tm-tower-b', 'usr-rohan'), "
+        "('prk-civic-metro', 'usr-ananya'), "
+        "('prk-civic-north', 'usr-ananya');",
+
+        # 6. Cycles in Private Parkings + Public
+        "INSERT OR REPLACE INTO cycles (id, public_cycle_id, parking_id, make_model, qr_code, condition) VALUES "
+        "('cyc-tm-101', 'CYC-TM-101', 'prk-tm-tower-a', 'Hero Sprint Pro / Matte Black', 'BYCME:CYC-TM-101', 'Working'), "
+        "('cyc-tm-102', 'CYC-TM-102', 'prk-tm-tower-a', 'Firefox Target 29 / Electric Blue', 'BYCME:CYC-TM-102', 'Working'), "
+        "('cyc-tm-103', 'CYC-TM-103', 'prk-tm-tower-a', 'Btwin Rockrider ST30 / Red', 'BYCME:CYC-TM-103', 'Broken'), "
+        "('cyc-tm-104', 'CYC-TM-104', 'prk-tm-tower-a', 'Hercules Roadeo Hardliner / Neon', 'BYCME:CYC-TM-104', 'Working'), "
+        "('cyc-tm-201', 'CYC-TM-201', 'prk-tm-tower-b', 'Montra Trance Pro / Gunmetal', 'BYCME:CYC-TM-201', 'Working'), "
+        "('cyc-tm-202', 'CYC-TM-202', 'prk-tm-tower-b', 'Btwin Riverside 120 / White', 'BYCME:CYC-TM-202', 'Puncture'), "
+        "('cyc-tm-203', 'CYC-TM-203', 'prk-tm-tower-b', 'Hero Octane Spring / Orange', 'BYCME:CYC-TM-203', 'Working'), "
+        "('cyc-cv-101', 'CYC-CV-101', 'prk-civic-metro', 'Atlas Ultimate City / Green', 'BYCME:CYC-CV-101', 'Working'), "
+        "('cyc-cv-102', 'CYC-CV-102', 'prk-civic-metro', 'Firefox Bad Attitude / Gray', 'BYCME:CYC-CV-102', 'Working');",
+
+        # 7. Invitations
+        "INSERT OR REPLACE INTO invitations (id, code, parking_id, created_by, status) VALUES "
+        "('inv-tm-2026', 'JOIN-TECH-2026', 'prk-tm-tower-a', 'usr-priya', 'active'), "
+        "('inv-cv-2026', 'JOIN-CIVIC-2026', 'prk-civic-metro', 'usr-ananya', 'active');",
+
+        # 8. Parking Memberships (Approved for Vikram, Neha, Rahul, Pooja; Pending for Aditya, Kavita)
+        "INSERT OR REPLACE INTO parking_memberships (id, parking_id, person_id, status) VALUES "
+        "('pm-vikram-a', 'prk-tm-tower-a', 'usr-vikram', 'approved'), "
+        "('pm-neha-a', 'prk-tm-tower-a', 'usr-neha', 'approved'), "
+        "('pm-rahul-b', 'prk-tm-tower-b', 'usr-rahul', 'approved'), "
+        "('pm-pooja-b', 'prk-tm-tower-b', 'usr-pooja', 'approved'), "
+        "('pm-aditya-a', 'prk-tm-tower-a', 'usr-aditya', 'pending'), "
+        "('pm-kavita-b', 'prk-tm-tower-b', 'usr-kavita', 'pending');"
+    ]
+
+    print("Inserting staging seed records ...")
+    env = {**os.environ, "CI": "true"}
+    full_sql = " ".join(seed_statements)
+    cmd = [
+        wrangler_path,
+        "d1",
+        "execute",
+        db_name,
+        "--remote",
+        f"--command={full_sql}",
+    ]
+    proc = subprocess.run(cmd, cwd=backend_dir, env=env, check=False)
+    if proc.returncode != 0:
+        print(f"[FAIL] Seeding failed for database '{db_name}'.")
+        return proc.returncode
+
+    print(f"[OK] Staging database '{db_name}' seeded successfully with 10 Indian user accounts, buildings, parkings, and cycles.")
+    return 0
+
+
 def run_publish_command(env_name: str = "staging") -> int:
     """Deploy backend Worker and frontend Pages to Cloudflare."""
     print(f"\n=== [Publish] Deploying Backend Worker and Frontend Pages ({env_name}) ===")
@@ -697,6 +820,7 @@ def format_custom_help() -> str:
         "  publish            Deploy backend Worker and frontend Pages to Cloudflare (--env <name>)",
         "  staging            Execute complete staging pipeline (check -> codegen -> build -> migrate -> publish)",
         "  dbdrop             Drop all tables and migration state in D1 database (staging only)",
+        "  dbseed             Seed staging D1 database with Indian test accounts and infrastructure (staging only)",
         "",
         "Options:",
         "  --env <name>       Target environment for migrate, publish, and staging (default: staging)",
@@ -752,6 +876,9 @@ def build_parser() -> argparse.ArgumentParser:
     dbdrop_p.add_argument("--env", default="staging", help="Target environment (strictly 'staging')")
     dbdrop_p.add_argument("-y", "--yes", action="store_true", help="Confirm database drop without interactive prompt")
 
+    dbseed_p = subparsers.add_parser("dbseed", help="Seed staging D1 database with Indian test accounts and infrastructure (staging only)")
+    dbseed_p.add_argument("--env", default="staging", help="Target environment (strictly 'staging')")
+
     subparsers.add_parser("help", help="Show categorized help and environment details")
 
     return parser
@@ -784,6 +911,7 @@ def main() -> None:
         "publish": lambda: run_publish_command(target_env),
         "staging": lambda: run_staging_command(target_env),
         "dbdrop": lambda: run_dbdrop_command(target_env, auto_confirm=getattr(args, "yes", False)),
+        "dbseed": lambda: run_dbseed_command(target_env),
     }
 
     handler = commands.get(args.command)
