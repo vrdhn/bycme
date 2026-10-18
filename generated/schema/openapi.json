@@ -6,6 +6,177 @@
   },
   "tags": [],
   "paths": {
+    "/api/buildings": {
+      "get": {
+        "operationId": "Endpoints_listBuildings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Building"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "Endpoints_createBuilding",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Building"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBuildingRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cycles": {
+      "get": {
+        "operationId": "Endpoints_listCycles",
+        "parameters": [
+          {
+            "name": "parkingId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Cycle"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "Endpoints_createCycle",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cycle"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCycleRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cycles/{id}/condition": {
+      "put": {
+        "operationId": "Endpoints_updateCycleCondition",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cycle"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCycleConditionRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cycles/{id}/trails": {
+      "get": {
+        "operationId": "Endpoints_getCycleTrails",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CycleConditionTrail"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "Endpoints_getHealth",
@@ -23,10 +194,627 @@
           }
         }
       }
+    },
+    "/api/invitations": {
+      "post": {
+        "operationId": "Endpoints_createInvitation",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvitationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invitations/accept": {
+      "post": {
+        "operationId": "Endpoints_acceptInvitation",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParkingMembership"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptInvitationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/memberships": {
+      "get": {
+        "operationId": "Endpoints_listMemberships",
+        "parameters": [
+          {
+            "name": "parkingId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ParkingMembership"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/memberships/{id}": {
+      "put": {
+        "operationId": "Endpoints_updateMembership",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParkingMembership"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMembershipRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/parkings": {
+      "get": {
+        "operationId": "Endpoints_listParkings",
+        "parameters": [
+          {
+            "name": "managerId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Parking"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "Endpoints_createParking",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Parking"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateParkingRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/parkings/{id}/managers": {
+      "put": {
+        "operationId": "Endpoints_updateParkingManagers",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Parking"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateParkingManagersRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/persons": {
+      "get": {
+        "operationId": "Endpoints_listPersons",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Person"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/persons/{id}/roles": {
+      "put": {
+        "operationId": "Endpoints_updatePersonRoles",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Person"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRolesRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rides": {
+      "get": {
+        "operationId": "Endpoints_listRides",
+        "parameters": [
+          {
+            "name": "parkingId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          },
+          {
+            "name": "riderId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/RideStatus"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Ride"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rides/checkout": {
+      "post": {
+        "operationId": "Endpoints_checkoutCycle",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ride"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutCycleRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/rides/{id}/checkin": {
+      "post": {
+        "operationId": "Endpoints_checkinCycle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ride"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckinCycleRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AcceptInvitationRequest": {
+        "type": "object",
+        "required": [
+          "code",
+          "name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "Building": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "buildingType",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "buildingType": {
+            "$ref": "#/components/schemas/BuildingType"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "BuildingType": {
+        "type": "string",
+        "enum": [
+          "Private",
+          "Public"
+        ]
+      },
+      "CheckinCycleRequest": {
+        "type": "object",
+        "properties": {
+          "checkinNotes": {
+            "type": "string"
+          },
+          "conditionChange": {
+            "$ref": "#/components/schemas/CycleCondition"
+          }
+        }
+      },
+      "CheckoutCycleRequest": {
+        "type": "object",
+        "required": [
+          "cycleId"
+        ],
+        "properties": {
+          "cycleId": {
+            "type": "string"
+          },
+          "checkoutNotes": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateBuildingRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "buildingType"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "buildingType": {
+            "$ref": "#/components/schemas/BuildingType"
+          }
+        }
+      },
+      "CreateCycleRequest": {
+        "type": "object",
+        "required": [
+          "parkingId",
+          "publicCycleId",
+          "makeModel"
+        ],
+        "properties": {
+          "parkingId": {
+            "type": "string"
+          },
+          "publicCycleId": {
+            "type": "string"
+          },
+          "makeModel": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateInvitationRequest": {
+        "type": "object",
+        "required": [
+          "parkingId"
+        ],
+        "properties": {
+          "parkingId": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateParkingRequest": {
+        "type": "object",
+        "required": [
+          "buildingId",
+          "name",
+          "capacity"
+        ],
+        "properties": {
+          "buildingId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "managerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "Cycle": {
+        "type": "object",
+        "required": [
+          "id",
+          "publicCycleId",
+          "parkingId",
+          "makeModel",
+          "qrCode",
+          "condition",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "publicCycleId": {
+            "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "makeModel": {
+            "type": "string"
+          },
+          "qrCode": {
+            "type": "string"
+          },
+          "condition": {
+            "$ref": "#/components/schemas/CycleCondition"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "CycleCondition": {
+        "type": "string",
+        "enum": [
+          "Working",
+          "Broken",
+          "Puncture"
+        ]
+      },
+      "CycleConditionTrail": {
+        "type": "object",
+        "required": [
+          "id",
+          "cycleId",
+          "personId",
+          "fromCondition",
+          "toCondition",
+          "notes",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cycleId": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "fromCondition": {
+            "type": "string"
+          },
+          "toCondition": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
       "HealthStatus": {
         "type": "object",
         "required": [
@@ -43,6 +831,276 @@
           },
           "environment": {
             "type": "string"
+          }
+        }
+      },
+      "Invitation": {
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "parkingId",
+          "createdBy",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvitationStatus"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "InvitationStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "expired",
+          "revoked"
+        ]
+      },
+      "MembershipStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "disapproved"
+        ]
+      },
+      "Parking": {
+        "type": "object",
+        "required": [
+          "id",
+          "buildingId",
+          "name",
+          "capacity",
+          "managerIds",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "buildingId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "managerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "ParkingMembership": {
+        "type": "object",
+        "required": [
+          "id",
+          "parkingId",
+          "personId",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MembershipStatus"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "personName": {
+            "type": "string"
+          },
+          "personEmail": {
+            "type": "string"
+          },
+          "parkingName": {
+            "type": "string"
+          }
+        }
+      },
+      "Person": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "roles",
+          "parkingIds",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonRole"
+            }
+          },
+          "parkingIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "PersonRole": {
+        "type": "string",
+        "enum": [
+          "Admin",
+          "Manager",
+          "Rider"
+        ]
+      },
+      "Ride": {
+        "type": "object",
+        "required": [
+          "id",
+          "cycleId",
+          "riderId",
+          "parkingId",
+          "status",
+          "startTime",
+          "checkoutNotes",
+          "checkinNotes",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cycleId": {
+            "type": "string"
+          },
+          "riderId": {
+            "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RideStatus"
+          },
+          "startTime": {
+            "type": "string"
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "checkoutNotes": {
+            "type": "string"
+          },
+          "checkinNotes": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "RideStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "finished"
+        ]
+      },
+      "UpdateCycleConditionRequest": {
+        "type": "object",
+        "required": [
+          "condition",
+          "notes"
+        ],
+        "properties": {
+          "condition": {
+            "$ref": "#/components/schemas/CycleCondition"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateMembershipRequest": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/MembershipStatus"
+          }
+        }
+      },
+      "UpdateParkingManagersRequest": {
+        "type": "object",
+        "required": [
+          "managerIds"
+        ],
+        "properties": {
+          "managerIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UpdateUserRolesRequest": {
+        "type": "object",
+        "required": [
+          "roles"
+        ],
+        "properties": {
+          "roles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PersonRole"
+            }
           }
         }
       }

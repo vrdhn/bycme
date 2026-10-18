@@ -46,9 +46,14 @@ Driver script: `./btool` (Python 3 standard library only).
 - Execution: `wrangler d1 migrations apply <database> --remote`.
 - Tracking: automatic via remote `d1_migrations` table.
 - Core schema:
-  - `stations`: Physical docking stations, coordinates, dock capacity, bike counts.
-  - `bikes`: Bike models, current station, battery level, status (`available`, `in_use`, `maintenance`).
-  - `rides`: Active and historic ride transactions, duration, and calculated cost.
+  - `buildings`: Campus/public facilities, names, building type (`Private`, `Public`).
+  - `parkings`: Parking stands, capacity limits, building associations, assigned managers.
+  - `persons`: User accounts with multi-role permissions (`Admin`, `Manager`, `Rider`).
+  - `parking_memberships`: Parking access requests and approved memberships (`pending`, `approved`, `disapproved`).
+  - `invitations`: Unique manager-generated invitation tokens for onboarding.
+  - `cycles`: Cycle fleet with public ID, QR payload, and condition (`Working`, `Broken`, `Puncture`).
+  - `cycle_condition_trails`: Audit logging for condition changes and maintenance notes.
+  - `rides`: Trip records with single active ride constraint, start/finish timestamps, and return notes.
 
 ---
 
@@ -70,7 +75,7 @@ Driver script: `./btool` (Python 3 standard library only).
 - Directory: `frontend/`.
 - Build output: `frontend/dist/`.
 - Deployment target: Cloudflare Pages (`bycme-staging.pages.dev`).
-- State and API: consumes `BycmeClient` from `generated/shared/` targeting backend API endpoints.
+- State and API: consumes `BycmeClient` from `generated/shared/` with role-switched views (Admin, Manager, Rider, Anon).
 
 ---
 
@@ -82,11 +87,18 @@ Driver script: `./btool` (Python 3 standard library only).
 - Database binding: `env.DB` bound to D1 database (`bycme-staging-db`).
 - REST Endpoints:
   - `GET /api/health`: Service heartbeat and status.
-  - `GET /api/stations`: Station listing with dock and bike counts.
-  - `GET /api/stations/:id`: Station lookup by ID.
-  - `GET /api/bikes`: Bike fleet status, filterable by `stationId`.
-  - `GET /api/bikes/:id`: Single bike details.
-  - `GET /api/rides`: Active rides listing.
-  - `POST /api/rides`: Unlock bike and initiate ride.
-  - `POST /api/rides/:id/end`: Return bike to station, calculate cost, and finalize ride.
+  - `GET /api/persons`: List all accounts, roles, and approved parking memberships.
+  - `PUT /api/persons/:id/roles`: Update user roles (`Admin`, `Manager`, `Rider`).
+  - `GET /api/buildings` & `POST /api/buildings`: List and create buildings.
+  - `GET /api/parkings` & `POST /api/parkings`: List and create parking hubs.
+  - `PUT /api/parkings/:id/managers`: Update parking manager assignments.
+  - `GET /api/cycles` & `POST /api/cycles`: List and register cycles.
+  - `PUT /api/cycles/:id/condition`: Update cycle condition and record audit trail.
+  - `GET /api/cycles/:id/trails`: View cycle condition audit trail.
+  - `GET /api/rides`: List rides with filters for parking, rider, and status.
+  - `POST /api/rides/checkout`: Checkout cycle (strictly 1 active ride per rider).
+  - `POST /api/rides/:id/checkin`: Return cycle, record notes, and optionally report condition change.
+  - `POST /api/invitations`: Generate unique invitation link/code.
+  - `POST /api/invitations/accept`: Register candidate and submit membership request.
+  - `GET /api/memberships` & `PUT /api/memberships/:id`: Review and approve/disapprove membership requests.
 - Staging host: `https://bycme-staging.bycme-backend.workers.dev`.
