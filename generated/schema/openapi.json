@@ -61,6 +61,235 @@
         }
       }
     },
+    "/api/buildings": {
+      "get": {
+        "operationId": "Endpoints_listBuildings",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cityId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Building"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "Endpoints_createBuilding",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Building"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBuildingRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/buildings/{id}": {
+      "put": {
+        "operationId": "Endpoints_updateBuilding",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Building"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBuildingRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cities": {
+      "get": {
+        "operationId": "Endpoints_listCities",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/City"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "Endpoints_createCity",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/City"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCityRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cities/{id}": {
+      "put": {
+        "operationId": "Endpoints_updateCity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/City"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCityRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "Endpoints_getHealth",
@@ -73,6 +302,125 @@
                 "schema": {
                   "$ref": "#/components/schemas/HealthStatus"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/parkings": {
+      "get": {
+        "operationId": "Endpoints_listParkings",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "buildingId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Parking"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "Endpoints_createParking",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Parking"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateParkingRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/parkings/{id}": {
+      "put": {
+        "operationId": "Endpoints_updateParking",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Parking"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateParkingRequest"
               }
             }
           }
@@ -112,6 +460,120 @@
   },
   "components": {
     "schemas": {
+      "Building": {
+        "type": "object",
+        "required": [
+          "id",
+          "cityId",
+          "name",
+          "buildingType",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cityId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "buildingType": {
+            "$ref": "#/components/schemas/BuildingType"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "cityName": {
+            "type": "string"
+          }
+        }
+      },
+      "BuildingType": {
+        "type": "string",
+        "enum": [
+          "Private",
+          "Public"
+        ]
+      },
+      "City": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "state",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateBuildingRequest": {
+        "type": "object",
+        "required": [
+          "cityId",
+          "name",
+          "buildingType"
+        ],
+        "properties": {
+          "cityId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "buildingType": {
+            "$ref": "#/components/schemas/BuildingType"
+          }
+        }
+      },
+      "CreateCityRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "state"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateParkingRequest": {
+        "type": "object",
+        "required": [
+          "buildingId",
+          "name",
+          "capacity"
+        ],
+        "properties": {
+          "buildingId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "HealthStatus": {
         "type": "object",
         "required": [
@@ -161,6 +623,40 @@
           }
         }
       },
+      "Parking": {
+        "type": "object",
+        "required": [
+          "id",
+          "buildingId",
+          "name",
+          "capacity",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "buildingId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "buildingName": {
+            "type": "string"
+          },
+          "cityName": {
+            "type": "string"
+          }
+        }
+      },
       "Person": {
         "type": "object",
         "required": [
@@ -198,6 +694,46 @@
           "Manager",
           "Rider"
         ]
+      },
+      "UpdateBuildingRequest": {
+        "type": "object",
+        "properties": {
+          "cityId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "buildingType": {
+            "$ref": "#/components/schemas/BuildingType"
+          }
+        }
+      },
+      "UpdateCityRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateParkingRequest": {
+        "type": "object",
+        "properties": {
+          "buildingId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       }
     }
   },

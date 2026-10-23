@@ -6,6 +6,7 @@
  */
 
 export type PersonRole = "Admin" | "Manager" | "Rider";
+export type BuildingType = "Private" | "Public";
 
 export interface HealthStatus {
   status: string;
@@ -29,6 +30,66 @@ export interface LoginRequest {
 export interface LoginResponse {
   token: string;
   user: Person;
+}
+
+export interface City {
+  id: string;
+  name: string;
+  state: string;
+  createdAt: string;
+}
+
+export interface CreateCityRequest {
+  name: string;
+  state: string;
+}
+
+export interface UpdateCityRequest {
+  name?: string;
+  state?: string;
+}
+
+export interface Building {
+  id: string;
+  cityId: string;
+  name: string;
+  buildingType: BuildingType;
+  createdAt: string;
+  cityName?: string;
+}
+
+export interface CreateBuildingRequest {
+  cityId: string;
+  name: string;
+  buildingType: BuildingType;
+}
+
+export interface UpdateBuildingRequest {
+  cityId?: string;
+  name?: string;
+  buildingType?: BuildingType;
+}
+
+export interface Parking {
+  id: string;
+  buildingId: string;
+  name: string;
+  capacity: number;
+  createdAt: string;
+  buildingName?: string;
+  cityName?: string;
+}
+
+export interface CreateParkingRequest {
+  buildingId: string;
+  name: string;
+  capacity: number;
+}
+
+export interface UpdateParkingRequest {
+  buildingId?: string;
+  name?: string;
+  capacity?: number;
 }
 
 export class BycmeClient {
@@ -83,5 +144,85 @@ export class BycmeClient {
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
     return this.request<Person[]>("/api/persons", { headers });
+  }
+
+  listCities(token?: string): Promise<City[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<City[]>("/api/cities", { headers });
+  }
+
+  createCity(body: CreateCityRequest, token?: string): Promise<City> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<City>("/api/cities", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateCity(id: string, body: UpdateCityRequest, token?: string): Promise<City> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<City>(`/api/cities/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(body),
+    });
+  }
+
+  listBuildings(cityId?: string, token?: string): Promise<Building[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const q = cityId ? `?cityId=${encodeURIComponent(cityId)}` : "";
+    return this.request<Building[]>(`/api/buildings${q}`, { headers });
+  }
+
+  createBuilding(body: CreateBuildingRequest, token?: string): Promise<Building> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<Building>("/api/buildings", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateBuilding(id: string, body: UpdateBuildingRequest, token?: string): Promise<Building> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<Building>(`/api/buildings/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(body),
+    });
+  }
+
+  listParkings(buildingId?: string, token?: string): Promise<Parking[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const q = buildingId ? `?buildingId=${encodeURIComponent(buildingId)}` : "";
+    return this.request<Parking[]>(`/api/parkings${q}`, { headers });
+  }
+
+  createParking(body: CreateParkingRequest, token?: string): Promise<Parking> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<Parking>("/api/parkings", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateParking(id: string, body: UpdateParkingRequest, token?: string): Promise<Parking> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<Parking>(`/api/parkings/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(body),
+    });
   }
 }

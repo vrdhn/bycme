@@ -38,6 +38,19 @@
   * Active user status pill and one-click Logout control in `StatusBar`.
   * Protected App workspace gating all downstream views behind valid authenticated sessions.
 
+### `feat003`: City, Building & Parking Hierarchy Management
+* **Location Infrastructure**:
+  * 3-tier hierarchy: Cities -> Buildings -> Parking Stands.
+  * Support for Private (campus/office) and Public (transit/metro) building classifications.
+  * Dock capacity configuration on each parking stand.
+* **Inline Name & Spelling Editing**:
+  * Direct editing and spelling correction for Cities (name, state), Buildings (name, city, type), and Parkings (name, building, capacity).
+* **Location Console**:
+  * Subtabbed interface in `/app` workspace for managing Cities, Buildings, and Parkings.
+  * Inline creation forms and live editable table rows.
+* **Modular Seed**:
+  * `seed-002-locations.sql` populating test hubs in Pune (Maharashtra), Bengaluru (Karnataka), and Hyderabad (Telangana).
+
 ---
 
 ## 2. Database
@@ -70,15 +83,52 @@
 * **Indexes**:
   * `idx_person_roles_person_id` on `person_roles(person_id)` (`feat002`)
 
+#### Table: `cities`
+| Column | Type | Constraints | Description | Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | Unique city identifier | `feat003` |
+| `name` | `TEXT` | `UNIQUE NOT NULL COLLATE NOCASE` | City name | `feat003` |
+| `state` | `TEXT` | `NOT NULL` | State or region | `feat003` |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Record creation timestamp | `feat003` |
+
+* **Indexes**:
+  * `idx_cities_name` on `cities(name)` (`feat003`)
+
+#### Table: `buildings`
+| Column | Type | Constraints | Description | Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | Unique building identifier | `feat003` |
+| `city_id` | `TEXT` | `NOT NULL REFERENCES cities(id) ON DELETE CASCADE` | Parent city foreign key | `feat003` |
+| `name` | `TEXT` | `NOT NULL` | Building facility name | `feat003` |
+| `building_type` | `TEXT` | `NOT NULL CHECK (building_type IN ('Private', 'Public'))` | Facility type classification | `feat003` |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Record creation timestamp | `feat003` |
+
+* **Indexes**:
+  * `idx_buildings_city_id` on `buildings(city_id)` (`feat003`)
+
+#### Table: `parkings`
+| Column | Type | Constraints | Description | Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | Unique parking stand identifier | `feat003` |
+| `building_id` | `TEXT` | `NOT NULL REFERENCES buildings(id) ON DELETE CASCADE` | Parent building foreign key | `feat003` |
+| `name` | `TEXT` | `NOT NULL` | Parking stand name | `feat003` |
+| `capacity` | `INTEGER` | `NOT NULL DEFAULT 10` | Maximum docking capacity | `feat003` |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Record creation timestamp | `feat003` |
+
+* **Indexes**:
+  * `idx_parkings_building_id` on `parkings(building_id)` (`feat003`)
+
 ### Migrations
 | Migration | Description | Feature |
 | :--- | :--- | :--- |
 | `sqlsource/migrations/0001_auth.sql` | Authentication tables, roles, and indexes | `feat002` |
+| `sqlsource/migrations/0002_locations.sql` | Location hierarchy: cities, buildings, parkings | `feat003` |
 
 ### Seed Files
 | Seed File | Description | Feature |
 | :--- | :--- | :--- |
 | `sqlsource/seeds/seed-001-admin.sql` | Initial System Administrator (`admin@bycme.in`) | `feat002` |
+| `sqlsource/seeds/seed-002-locations.sql` | Baseline Indian cities, buildings, and parking stands | `feat003` |
 
 ---
 
@@ -93,6 +143,16 @@
 * `Person`: `{ id: string, email: string, name: string, roles: PersonRole[], createdAt: string }` (`feat002`)
 * `LoginRequest`: `{ email: string, password: string }` (`feat002`)
 * `LoginResponse`: `{ token: string, user: Person }` (`feat002`)
+* `City`: `{ id: string, name: string, state: string, createdAt: string }` (`feat003`)
+* `CreateCityRequest`: `{ name: string, state: string }` (`feat003`)
+* `UpdateCityRequest`: `{ name?: string, state?: string }` (`feat003`)
+* `BuildingType`: `"Private" | "Public"` (`feat003`)
+* `Building`: `{ id: string, cityId: string, name: string, buildingType: BuildingType, createdAt: string, cityName?: string }` (`feat003`)
+* `CreateBuildingRequest`: `{ cityId: string, name: string, buildingType: BuildingType }` (`feat003`)
+* `UpdateBuildingRequest`: `{ cityId?: string, name?: string, buildingType?: BuildingType }` (`feat003`)
+* `Parking`: `{ id: string, buildingId: string, name: string, capacity: int32, createdAt: string, buildingName?: string, cityName?: string }` (`feat003`)
+* `CreateParkingRequest`: `{ buildingId: string, name: string, capacity: int32 }` (`feat003`)
+* `UpdateParkingRequest`: `{ buildingId?: string, name?: string, capacity?: int32 }` (`feat003`)
 
 ### Endpoints Table
 
@@ -102,3 +162,12 @@
 | `feat002` | `POST` | `/api/auth/login` | Authenticate credentials; return session token + user profile | None | `LoginRequest` | `LoginResponse` |
 | `feat002, fix001` | `GET` | `/api/auth/me` | Return active authenticated user profile & roles | `Authorization: Bearer <token>` | None | `Person` |
 | `feat002, fix001` | `GET` | `/api/persons` | List persons and assigned roles | `Authorization: Bearer <token>` (Admin) | None | `Person[]` |
+| `feat003` | `GET` | `/api/cities` | List all cities | `Authorization: Bearer <token>` | None | `City[]` |
+| `feat003` | `POST` | `/api/cities` | Create new city | `Authorization: Bearer <token>` (Admin) | `CreateCityRequest` | `City` |
+| `feat003` | `PUT` | `/api/cities/{id}` | Update city spelling / state | `Authorization: Bearer <token>` (Admin) | `UpdateCityRequest` | `City` |
+| `feat003` | `GET` | `/api/buildings` | List all buildings with city details | `Authorization: Bearer <token>` | None | `Building[]` |
+| `feat003` | `POST` | `/api/buildings` | Create new building in a city | `Authorization: Bearer <token>` (Admin) | `CreateBuildingRequest` | `Building` |
+| `feat003` | `PUT` | `/api/buildings/{id}` | Update building spelling / details | `Authorization: Bearer <token>` (Admin) | `UpdateBuildingRequest` | `Building` |
+| `feat003` | `GET` | `/api/parkings` | List all parking stands with parent details | `Authorization: Bearer <token>` | None | `Parking[]` |
+| `feat003` | `POST` | `/api/parkings` | Create new parking stand | `Authorization: Bearer <token>` (Admin) | `CreateParkingRequest` | `Parking` |
+| `feat003` | `PUT` | `/api/parkings/{id}` | Update parking stand spelling / capacity | `Authorization: Bearer <token>` (Admin) | `UpdateParkingRequest` | `Parking` |

@@ -41,6 +41,71 @@ model LoginResponse {
   user: Person;
 }
 
+model City {
+  id: string;
+  name: string;
+  state: string;
+  createdAt: string;
+}
+
+model CreateCityRequest {
+  name: string;
+  state: string;
+}
+
+model UpdateCityRequest {
+  name?: string;
+  state?: string;
+}
+
+enum BuildingType {
+  Private,
+  Public,
+}
+
+model Building {
+  id: string;
+  cityId: string;
+  name: string;
+  buildingType: BuildingType;
+  createdAt: string;
+  cityName?: string;
+}
+
+model CreateBuildingRequest {
+  cityId: string;
+  name: string;
+  buildingType: BuildingType;
+}
+
+model UpdateBuildingRequest {
+  cityId?: string;
+  name?: string;
+  buildingType?: BuildingType;
+}
+
+model Parking {
+  id: string;
+  buildingId: string;
+  name: string;
+  capacity: int32;
+  createdAt: string;
+  buildingName?: string;
+  cityName?: string;
+}
+
+model CreateParkingRequest {
+  buildingId: string;
+  name: string;
+  capacity: int32;
+}
+
+model UpdateParkingRequest {
+  buildingId?: string;
+  name?: string;
+  capacity?: int32;
+}
+
 @route("/api")
 namespace Endpoints {
   @get
@@ -58,4 +123,40 @@ namespace Endpoints {
   @get
   @route("/persons")
   op listPersons(@header authorization?: string): Person[];
+
+  @get
+  @route("/cities")
+  op listCities(@header authorization?: string): City[];
+
+  @post
+  @route("/cities")
+  op createCity(@body body: CreateCityRequest, @header authorization?: string): City;
+
+  @put
+  @route("/cities/{id}")
+  op updateCity(@path id: string, @body body: UpdateCityRequest, @header authorization?: string): City;
+
+  @get
+  @route("/buildings")
+  op listBuildings(@header authorization?: string, @query cityId?: string): Building[];
+
+  @post
+  @route("/buildings")
+  op createBuilding(@body body: CreateBuildingRequest, @header authorization?: string): Building;
+
+  @put
+  @route("/buildings/{id}")
+  op updateBuilding(@path id: string, @body body: UpdateBuildingRequest, @header authorization?: string): Building;
+
+  @get
+  @route("/parkings")
+  op listParkings(@header authorization?: string, @query buildingId?: string): Parking[];
+
+  @post
+  @route("/parkings")
+  op createParking(@body body: CreateParkingRequest, @header authorization?: string): Parking;
+
+  @put
+  @route("/parkings/{id}")
+  op updateParking(@path id: string, @body body: UpdateParkingRequest, @header authorization?: string): Parking;
 }

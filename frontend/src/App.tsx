@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { BycmeClient, Person } from "../../generated/shared";
 import { StatusBar } from "./components/StatusBar";
 import { LoginForm } from "./components/LoginForm";
+import { LocationsAdminView } from "./components/LocationsAdminView";
 
 const API_BASE = "https://bycme-staging.bycme-backend.workers.dev";
 const client = new BycmeClient(API_BASE);
 
 export default function App() {
   const [view, setView] = useState<"home" | "login" | "app">("home");
+  const [adminSection, setAdminSection] = useState<"locations" | "users">("locations");
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<Person | null>(null);
   const [persons, setPersons] = useState<Person[]>([]);
@@ -45,10 +47,10 @@ export default function App() {
   }, [fetchSession]);
 
   useEffect(() => {
-    if (view === "app" && authToken && currentUser?.roles.includes("Admin")) {
+    if (view === "app" && authToken && currentUser?.roles.includes("Admin") && adminSection === "users") {
       loadPersons(authToken);
     }
-  }, [view, authToken, currentUser, loadPersons]);
+  }, [view, authToken, currentUser, adminSection, loadPersons]);
 
   const handleLoginSuccess = (token: string, user: Person) => {
     localStorage.setItem("bycme-token", token);
@@ -153,6 +155,7 @@ export default function App() {
             </div>
           ) : (
             <>
+              {/* User Header Card */}
               <div className="card">
                 <div
                   style={{
@@ -182,56 +185,82 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Admin Navigation Controls */}
               {currentUser.roles.includes("Admin") && (
-                <div className="card">
-                  <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>
-                    User Directory (Admin Access)
-                  </h3>
-                  <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
-                    Listing all persons protected by Bearer token authorization.
-                  </p>
+                <>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button
+                      className={adminSection === "locations" ? "btn-primary" : "btn-secondary"}
+                      style={{ width: "auto", padding: "0.5rem 1.25rem" }}
+                      onClick={() => setAdminSection("locations")}
+                    >
+                      📍 Locations (Cities / Buildings / Parkings)
+                    </button>
+                    <button
+                      className={adminSection === "users" ? "btn-primary" : "btn-secondary"}
+                      style={{ width: "auto", padding: "0.5rem 1.25rem" }}
+                      onClick={() => setAdminSection("users")}
+                    >
+                      👥 User Directory
+                    </button>
+                  </div>
 
-                  {loadingPersons ? (
-                    <p style={{ color: "var(--text-muted)", marginTop: "1rem" }}>
-                      Loading user accounts...
-                    </p>
-                  ) : persons.length === 0 ? (
-                    <p style={{ color: "var(--text-muted)", marginTop: "1rem" }}>
-                      No user accounts found.
-                    </p>
-                  ) : (
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Email</th>
-                          <th>Roles</th>
-                          <th>Registered</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {persons.map((p) => (
-                          <tr key={p.id}>
-                            <td style={{ fontWeight: 600 }}>{p.name}</td>
-                            <td style={{ color: "var(--text-secondary)" }}>{p.email}</td>
-                            <td>
-                              <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
-                                {p.roles.map((r) => (
-                                  <span key={r} className={`badge-role badge-${r}`}>
-                                    {r}
-                                  </span>
-                                ))}
-                              </div>
-                            </td>
-                            <td style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
-                              {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  {adminSection === "locations" && authToken && (
+                    <LocationsAdminView apiClient={client} token={authToken} />
                   )}
-                </div>
+
+                  {adminSection === "users" && (
+                    <div className="card">
+                      <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>
+                        User Directory (Admin Access)
+                      </h3>
+                      <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
+                        Listing all persons protected by Bearer token authorization.
+                      </p>
+
+                      {loadingPersons ? (
+                        <p style={{ color: "var(--text-muted)", marginTop: "1rem" }}>
+                          Loading user accounts...
+                        </p>
+                      ) : persons.length === 0 ? (
+                        <p style={{ color: "var(--text-muted)", marginTop: "1rem" }}>
+                          No user accounts found.
+                        </p>
+                      ) : (
+                        <table className="data-table">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Email</th>
+                              <th>Roles</th>
+                              <th>Registered</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {persons.map((p) => (
+                              <tr key={p.id}>
+                                <td style={{ fontWeight: 600 }}>{p.name}</td>
+                                <td style={{ color: "var(--text-secondary)" }}>{p.email}</td>
+                                <td>
+                                  <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+                                    {p.roles.map((r) => (
+                                      <span key={r} className={`badge-role badge-${r}`}>
+                                        {r}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </td>
+                                <td style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                                  {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}
