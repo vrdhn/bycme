@@ -7,11 +7,64 @@ interface LoginFormProps {
   onCancel: () => void;
 }
 
+interface SeededAccount {
+  name: string;
+  email: string;
+  role: "Admin" | "Manager" | "Applicant";
+  detail: string;
+}
+
+const SEEDED_ACCOUNTS: SeededAccount[] = [
+  {
+    name: "System Administrator",
+    email: "admin@bycme.in",
+    role: "Admin",
+    detail: "Global Admin Console",
+  },
+  {
+    name: "Anita Desai",
+    email: "anita@bycme.in",
+    role: "Manager",
+    detail: "Pune • Gate 1 Residential Stand",
+  },
+  {
+    name: "Vikram Joshi",
+    email: "vikram@bycme.in",
+    role: "Manager",
+    detail: "Pune • Clubhouse Stand",
+  },
+  {
+    name: "Suresh Reddy",
+    email: "suresh@bycme.in",
+    role: "Manager",
+    detail: "Bengaluru • East Gate Stand",
+  },
+  {
+    name: "Priya Nair",
+    email: "priya@bycme.in",
+    role: "Manager",
+    detail: "Bengaluru • Sports Arena Stand",
+  },
+  {
+    name: "Rahul Verma",
+    email: "rahul@bycme.in",
+    role: "Manager",
+    detail: "Hyderabad • Podium Level Stand",
+  },
+  {
+    name: "Rajesh Kumar",
+    email: "rajesh@bycme.in",
+    role: "Applicant",
+    detail: "Bengaluru • Pending Request",
+  },
+];
+
 export function LoginForm({ apiClient, onLoginSuccess, onCancel }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSeededMenu, setShowSeededMenu] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,10 +90,11 @@ export function LoginForm({ apiClient, onLoginSuccess, onCancel }: LoginFormProp
     }
   };
 
-  const handleFillAdmin = () => {
-    setEmail("admin@bycme.in");
+  const handleSelectSeeded = (acc: SeededAccount) => {
+    setEmail(acc.email);
     setPassword("Admin@Bycme2026");
     setError(null);
+    setShowSeededMenu(false);
   };
 
   return (
@@ -89,14 +143,98 @@ export function LoginForm({ apiClient, onLoginSuccess, onCancel }: LoginFormProp
             {loading ? "Authenticating..." : "Sign In ➔"}
           </button>
 
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={handleFillAdmin}
-            style={{ fontSize: "0.85rem" }}
-          >
-            ⚡ Use Seeded Admin Credentials
-          </button>
+          <div style={{ position: "relative", width: "100%" }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowSeededMenu((prev) => !prev)}
+              style={{
+                fontSize: "0.85rem",
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span>⚡ Quick Fill Seeded Account</span>
+              <span style={{ fontSize: "0.75rem" }}>{showSeededMenu ? "▲" : "▼"}</span>
+            </button>
+
+            {showSeededMenu && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 4px)",
+                  left: 0,
+                  right: 0,
+                  background: "var(--card-bg, #ffffff)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "8px",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.18)",
+                  zIndex: 100,
+                  maxHeight: "260px",
+                  overflowY: "auto",
+                  padding: "0.35rem",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "0.35rem 0.6rem",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    color: "var(--text-muted)",
+                    borderBottom: "1px solid var(--border-color)",
+                    marginBottom: "0.25rem",
+                  }}
+                >
+                  Select a test account:
+                </div>
+                {SEEDED_ACCOUNTS.map((acc) => (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    onClick={() => handleSelectSeeded(acc)}
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      width: "100%",
+                      padding: "0.45rem 0.6rem",
+                      background: "transparent",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "background 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--bg-muted, #f1f5f9)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" }}>
+                      <span style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--text-main)" }}>
+                        {acc.name}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "0.7rem",
+                          fontWeight: 600,
+                          padding: "0.1rem 0.35rem",
+                          borderRadius: "4px",
+                          background: acc.role === "Admin" ? "#fee2e2" : acc.role === "Manager" ? "#dbeafe" : "#fef3c7",
+                          color: acc.role === "Admin" ? "#b91c1c" : acc.role === "Manager" ? "#1d4ed8" : "#b45309",
+                        }}
+                      >
+                        {acc.role}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>
+                      {acc.email} • {acc.detail}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <button type="button" className="btn-text" onClick={onCancel}>
             ← Back to Landing Page

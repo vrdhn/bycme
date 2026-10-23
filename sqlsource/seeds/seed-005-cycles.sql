@@ -2,7 +2,7 @@
 
 INSERT INTO cycles (id, public_cycle_id, parking_id, company, model, colour, status, lock_code, qr_code)
 VALUES
--- Gate 1 Residential Stand (Pune - Greenwood Heights)
+-- Gate 1 Residential Stand (Pune - Greenwood Heights) - Managed by Anita Desai
 (
   'cyc-sample-001',
   'PUN-001',
@@ -70,9 +70,33 @@ VALUES
   'p8Q2s4T6u8V0w1x3y5z7A9'
 ),
 
--- East Gate Stand (Bengaluru - Palm Meadows Enclave)
+-- Clubhouse Stand (Pune - Greenwood Heights) - Managed by Vikram Joshi
 (
   'cyc-sample-007',
+  'PUN-007',
+  'prk-gw-clubhouse',
+  'Btwin',
+  'Rockrider ST100',
+  'Sport White',
+  'Working',
+  '5511',
+  'v2B4n6M8p0R1t3V5x7Z9aC'
+),
+(
+  'cyc-sample-008',
+  'PUN-008',
+  'prk-gw-clubhouse',
+  'Hero',
+  'Octane Dude',
+  'Jet Black',
+  'Working',
+  '3322',
+  'd4F6h8J0k2M4n6P8r0T2vX'
+),
+
+-- East Gate Stand (Bengaluru - Palm Meadows Enclave) - Managed by Suresh Reddy
+(
+  'cyc-sample-009',
   'BLR-001',
   'prk-palm-east',
   'Btwin',
@@ -83,7 +107,7 @@ VALUES
   'b1C3d5E7f9G2h4J6k8M0nP'
 ),
 (
-  'cyc-sample-008',
+  'cyc-sample-010',
   'BLR-002',
   'prk-palm-east',
   'Firefox',
@@ -94,7 +118,7 @@ VALUES
   'r2S4t6U8v0W1x3Y5z7A9bC'
 ),
 (
-  'cyc-sample-009',
+  'cyc-sample-011',
   'BLR-003',
   'prk-palm-east',
   'Schnell',
@@ -105,9 +129,33 @@ VALUES
   'd4E6f8G0h2J4k6M8n0P2qR'
 ),
 
--- Podium Level Stand (Hyderabad - My Home Bhooja)
+-- Sports Arena Stand (Bengaluru - Palm Meadows Enclave) - Managed by Priya Nair
 (
-  'cyc-sample-010',
+  'cyc-sample-012',
+  'BLR-004',
+  'prk-palm-sports',
+  'Trek',
+  'FX 1 Disc',
+  'Metallic Silver',
+  'Working',
+  '7744',
+  'g9H1j3K5m7P9r1T3v5X7zB'
+),
+(
+  'cyc-sample-013',
+  'BLR-005',
+  'prk-palm-sports',
+  'Montra',
+  'Trance Pro',
+  'Matte Crimson',
+  'Working',
+  '9988',
+  'j2K4m6P8r0T2v4X6z8B0dF'
+),
+
+-- Podium Level Stand (Hyderabad - My Home Bhooja) - Managed by Rahul Verma
+(
+  'cyc-sample-014',
   'HYD-001',
   'prk-bhooja-podium',
   'Scott',
@@ -118,7 +166,7 @@ VALUES
   'e5F7g9H1j3K5m7N9p1Q3rS'
 ),
 (
-  'cyc-sample-011',
+  'cyc-sample-015',
   'HYD-002',
   'prk-bhooja-podium',
   'Polygon',
@@ -127,6 +175,17 @@ VALUES
   'Working',
   '4422',
   'g7H9j1K3m5N7p9Q1r3S5tU'
+),
+(
+  'cyc-sample-016',
+  'HYD-003',
+  'prk-bhooja-podium',
+  'Giant',
+  'ATX 27.5',
+  'Anthracite Grey',
+  'Working',
+  '6633',
+  'k1M3p5R7t9V1x3Z5b7D9fH'
 )
 ON CONFLICT(id) DO UPDATE SET
   public_cycle_id = excluded.public_cycle_id,

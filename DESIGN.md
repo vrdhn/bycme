@@ -134,9 +134,14 @@
   * `LocationsAdminView`: Building options explicitly labeled `Private (Residential)` vs `Public (Campus / Office / Transit)`.
   * Parkings table renders `Private (Residential)` or `Public` badge.
   * `🔑 Invite` button rendered strictly for parkings under `Private` residential buildings; public parkings show `No Manager (Public)`.
-* **Expanded Seeds**:
-  * Added multiple residential buildings and private stands across Pune (`Greenwood Heights`), Bengaluru (`Palm Meadows Enclave`), and Hyderabad (`My Home Bhooja`).
-  * Expanded cycle inventory across multiple residential locations.
+
+### `feat007`: Seeded Managers Fleet & Quick-Fill Login Menu
+* **Seeded Active Manager Assignments**:
+  * Seeded 5 active parking managers assigned to distinct private residential stands (`anita@bycme.in`, `vikram@bycme.in`, `suresh@bycme.in`, `priya@bycme.in`, `rahul@bycme.in`).
+  * Expanded cycle fleets stationed at each manager stand (16 total cycles across stands).
+* **Hardwired Quick-Fill Dropdown**:
+  * Replaced single admin quick-fill button in `LoginForm` with client-side hardwired account selector menu.
+  * Instantly populates credentials for System Administrator, all 5 parking managers, and pending applicant without creating API dependencies.
 
 ---
 
