@@ -51,3 +51,4 @@
 - Database Migrations: Cloudflare D1 native migrations applied via `wrangler d1 migrations apply`
 - Staging Workflow: `./btool staging` executes preflight check, codegen, build, migration, and publish
 - CI Verification: `./btool verify` asserts generated files match TypeSpec contract and detects drift
+- Design Documentation: `DESIGN.md` in repository root must be continuously updated with features/subfeatures, database schema (tables/fields with feature version), and REST API endpoints (with feature version)
