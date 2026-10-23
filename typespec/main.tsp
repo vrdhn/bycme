@@ -134,6 +134,64 @@ model ManagerInvitation {
   createdAt: string;
 }
 
+model RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+}
+
+model InvitationDetails {
+  token: string;
+  role: PersonRole;
+  isPreapproved: boolean;
+  parkingId: string;
+  parkingName: string;
+  buildingName?: string;
+  cityName?: string;
+  createdByName?: string;
+  expiresAt: string;
+}
+
+enum ManagerRequestStatus {
+  pending: "pending",
+  approved: "approved",
+  rejected: "rejected",
+}
+
+model ManagerRequest {
+  id: string;
+  parkingId: string;
+  personId: string;
+  invitationId?: string;
+  status: ManagerRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+  parkingName?: string;
+  cityName?: string;
+  personName?: string;
+  personEmail?: string;
+}
+
+model ParkingManager {
+  id: string;
+  parkingId: string;
+  personId: string;
+  assignedBy?: string;
+  createdAt: string;
+  parkingName?: string;
+  cityName?: string;
+  personName?: string;
+  personEmail?: string;
+}
+
+model RespondInvitationResponse {
+  action: string;
+  status: string;
+  message: string;
+  request?: ManagerRequest;
+  parkingManager?: ParkingManager;
+}
+
 @route("/api")
 namespace Endpoints {
   @get
@@ -143,6 +201,10 @@ namespace Endpoints {
   @post
   @route("/auth/login")
   op login(@body body: LoginRequest): LoginResponse;
+
+  @post
+  @route("/auth/register")
+  op register(@body body: RegisterRequest): LoginResponse;
 
   @get
   @route("/auth/me")
@@ -202,4 +264,37 @@ namespace Endpoints {
     @path id: string,
     @header authorization?: string
   ): ManagerInvitation[];
+
+  @get
+  @route("/invitations/{token}")
+  op getInvitation(@path token: string): InvitationDetails;
+
+  @post
+  @route("/invitations/{token}/respond")
+  op respondToInvitation(
+    @path token: string,
+    @header authorization?: string
+  ): RespondInvitationResponse;
+
+  @get
+  @route("/me/manager-requests")
+  op getMyManagerRequests(@header authorization?: string): ManagerRequest[];
+
+  @get
+  @route("/admin/manager-requests")
+  op listAdminManagerRequests(@header authorization?: string): ManagerRequest[];
+
+  @post
+  @route("/admin/manager-requests/{id}/approve")
+  op approveManagerRequest(
+    @path id: string,
+    @header authorization?: string
+  ): ManagerRequest;
+
+  @post
+  @route("/admin/manager-requests/{id}/reject")
+  op rejectManagerRequest(
+    @path id: string,
+    @header authorization?: string
+  ): ManagerRequest;
 }

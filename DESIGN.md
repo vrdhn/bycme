@@ -77,6 +77,19 @@
   * TypeSpec and TypeScript client models updated with `isPreapproved` flag.
   * Tailored WhatsApp copy reflecting pre-approved status.
 
+### `feat005`: Create Managers & Management Requests
+* **Separated Data Architecture**:
+  * Dedicated `manager_requests` table tracking application state (`pending`, `approved`, `rejected`) with foreign key to originating invitation.
+  * Dedicated `parking_managers` table representing active authorized parking managers.
+* **Unified Invitation & Auth Flow**:
+  * Public lookup endpoint (`/api/invitations/{token}`) rendering invitation details without prior authentication.
+  * Single unified authentication card supporting both login for existing users and inline registration (`/api/auth/register`) for new applicants.
+  * Pre-approved invitation acceptance immediately assigns the `Manager` role and records active manager binding, marking token as `used`.
+  * Standard invitation submission generates a `pending` request, displaying existing application status to prevent duplicates.
+* **Admin Management Console ("Requests" Tab)**:
+  * Admin workspace tab for reviewing all manager requests across parkings.
+  * Single-click Approve (marks request `approved`, grants `Manager` role, binds to `parking_managers`) and Reject (marks request `rejected`).
+
 ---
 
 ## 2. Database
@@ -162,6 +175,38 @@
   * `idx_invitations_parking_id` on `invitations(parking_id)` (`feat004`)
   * `idx_invitations_parking_role_status` on `invitations(parking_id, role, status, expires_at)` (`feat004`)
 
+#### Table: `manager_requests`
+| Column | Type | Constraints | Description | Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | Unique request record ID | `feat005` |
+| `parking_id` | `TEXT` | `NOT NULL REFERENCES parkings(id) ON DELETE CASCADE` | Target parking stand foreign key | `feat005` |
+| `person_id` | `TEXT` | `NOT NULL REFERENCES persons(id) ON DELETE CASCADE` | Applicant person foreign key | `feat005` |
+| `invitation_id` | `TEXT` | `REFERENCES invitations(id) ON DELETE SET NULL` | Originating invitation link | `feat005` |
+| `status` | `TEXT` | `NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected'))` | Application review state | `feat005` |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Submission timestamp | `feat005` |
+| `updated_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Decision timestamp | `feat005` |
+
+* **Constraints**:
+  * `UNIQUE(parking_id, person_id, status)` (`feat005`)
+* **Indexes**:
+  * `idx_manager_requests_person` on `manager_requests(person_id)` (`feat005`)
+  * `idx_manager_requests_parking` on `manager_requests(parking_id, status)` (`feat005`)
+
+#### Table: `parking_managers`
+| Column | Type | Constraints | Description | Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | Unique manager assignment record ID | `feat005` |
+| `parking_id` | `TEXT` | `NOT NULL REFERENCES parkings(id) ON DELETE CASCADE` | Target parking stand foreign key | `feat005` |
+| `person_id` | `TEXT` | `NOT NULL REFERENCES persons(id) ON DELETE CASCADE` | Assigned manager person foreign key | `feat005` |
+| `assigned_by` | `TEXT` | `REFERENCES persons(id) ON DELETE SET NULL` | Administrator / system issuer | `feat005` |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Assignment timestamp | `feat005` |
+
+* **Constraints**:
+  * `UNIQUE(parking_id, person_id)` (`feat005`)
+* **Indexes**:
+  * `idx_parking_managers_person` on `parking_managers(person_id)` (`feat005`)
+  * `idx_parking_managers_parking` on `parking_managers(parking_id)` (`feat005`)
+
 ### Migrations
 | Migration | Description | Feature |
 | :--- | :--- | :--- |
@@ -169,6 +214,7 @@
 | `sqlsource/migrations/0002_locations.sql` | Location hierarchy: cities, buildings, parkings | `feat003` |
 | `sqlsource/migrations/0003_invitations.sql` | Invitations table for managers and riders with expiry | `feat004` |
 | `sqlsource/migrations/0004_invitation_preapproved.sql` | Pre-approved single-use flag on invitations | `fix002` |
+| `sqlsource/migrations/0005_managers.sql` | Manager requests and parking managers rosters | `feat005` |
 
 ### Seed Files
 | Seed File | Description | Feature |
@@ -176,6 +222,7 @@
 | `sqlsource/seeds/seed-001-admin.sql` | Initial System Administrator (`admin@bycme.in`) | `feat002` |
 | `sqlsource/seeds/seed-002-locations.sql` | Baseline Indian cities, buildings, and parking stands | `feat003` |
 | `sqlsource/seeds/seed-003-invitations.sql` | Active sample parking manager invitation | `feat004, fix002` |
+| `sqlsource/seeds/seed-004-managers.sql` | Sample applicant user and initial pending manager request | `feat005` |
 
 ---
 
@@ -190,6 +237,7 @@
 * `Person`: `{ id: string, email: string, name: string, roles: PersonRole[], createdAt: string }` (`feat002`)
 * `LoginRequest`: `{ email: string, password: string }` (`feat002`)
 * `LoginResponse`: `{ token: string, user: Person }` (`feat002`)
+* `RegisterRequest`: `{ name: string, email: string, password: string }` (`feat005`)
 * `City`: `{ id: string, name: string, state: string, createdAt: string }` (`feat003`)
 * `CreateCityRequest`: `{ name: string, state: string }` (`feat003`)
 * `UpdateCityRequest`: `{ name?: string, state?: string }` (`feat003`)
@@ -203,6 +251,11 @@
 * `InvitationStatus`: `"active" | "used" | "revoked"` (`feat004`)
 * `CreateManagerInvitationRequest`: `{ durationHours?: int32, isPreapproved?: boolean }` (`feat004, fix002`)
 * `ManagerInvitation`: `{ id: string, token: string, parkingId: string, role: PersonRole, createdBy: string, status: InvitationStatus, isPreapproved: boolean, expiresAt: string, inviteUrl: string, whatsappMessage: string, parkingName?: string, cityName?: string, createdByName?: string, createdAt: string }` (`feat004, fix002`)
+* `InvitationDetails`: `{ token: string, role: PersonRole, isPreapproved: boolean, parkingId: string, parkingName: string, buildingName?: string, cityName?: string, createdByName?: string, expiresAt: string }` (`feat005`)
+* `ManagerRequestStatus`: `"pending" | "approved" | "rejected"` (`feat005`)
+* `ManagerRequest`: `{ id: string, parkingId: string, personId: string, invitationId?: string, status: ManagerRequestStatus, createdAt: string, updatedAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string }` (`feat005`)
+* `ParkingManager`: `{ id: string, parkingId: string, personId: string, assignedBy?: string, createdAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string }` (`feat005`)
+* `RespondInvitationResponse`: `{ action: string, status: string, message: string, request?: ManagerRequest, parkingManager?: ParkingManager }` (`feat005`)
 
 ### Endpoints Table
 
@@ -210,6 +263,7 @@
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `feat001` | `GET` | `/api/health` | Health check and heartbeat | None | None | `HealthStatus` |
 | `feat002` | `POST` | `/api/auth/login` | Authenticate credentials; return session token + user profile | None | `LoginRequest` | `LoginResponse` |
+| `feat005` | `POST` | `/api/auth/register` | Register new applicant account; return session token + profile | None | `RegisterRequest` | `LoginResponse` |
 | `feat002, fix001` | `GET` | `/api/auth/me` | Return active authenticated user profile & roles | `Authorization: Bearer <token>` | None | `Person` |
 | `feat002, fix001` | `GET` | `/api/persons` | List persons and assigned roles | `Authorization: Bearer <token>` (Admin) | None | `Person[]` |
 | `feat003` | `GET` | `/api/cities` | List all cities | `Authorization: Bearer <token>` | None | `City[]` |
@@ -223,3 +277,9 @@
 | `feat003` | `PUT` | `/api/parkings/{id}` | Update parking stand spelling / capacity | `Authorization: Bearer <token>` (Admin) | `UpdateParkingRequest` | `Parking` |
 | `feat004, fix002` | `POST` | `/api/parkings/{id}/manager-invitations` | Generate manager invitation link & WhatsApp text with expiry | `Authorization: Bearer <token>` (Admin) | `CreateManagerInvitationRequest` | `ManagerInvitation` |
 | `feat004, fix002` | `GET` | `/api/parkings/{id}/manager-invitations` | List unexpired active manager invitations for parking | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |
+| `feat005` | `GET` | `/api/invitations/{token}` | Public inspection of invitation link details | None | None | `InvitationDetails` |
+| `feat005` | `POST` | `/api/invitations/{token}/respond` | Submit management request or claim pre-approved assignment | `Authorization: Bearer <token>` | None | `RespondInvitationResponse` |
+| `feat005` | `GET` | `/api/me/manager-requests` | List current user's submitted manager requests | `Authorization: Bearer <token>` | None | `ManagerRequest[]` |
+| `feat005` | `GET` | `/api/admin/manager-requests` | List all submitted manager requests across parkings | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest[]` |
+| `feat005` | `POST` | `/api/admin/manager-requests/{id}/approve` | Approve manager request, create manager assignment, add role | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
+| `feat005` | `POST` | `/api/admin/manager-requests/{id}/reject` | Reject manager request | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |

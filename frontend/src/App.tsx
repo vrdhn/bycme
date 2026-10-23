@@ -3,17 +3,40 @@ import { BycmeClient, Person } from "../../generated/shared";
 import { StatusBar } from "./components/StatusBar";
 import { LoginForm } from "./components/LoginForm";
 import { LocationsAdminView } from "./components/LocationsAdminView";
+import { ManagerRequestsView } from "./components/ManagerRequestsView";
+import { InvitationLanding } from "./components/InvitationLanding";
 
 const API_BASE = "https://bycme-staging.bycme-backend.workers.dev";
 const client = new BycmeClient(API_BASE);
 
 export default function App() {
   const [view, setView] = useState<"home" | "login" | "app">("home");
-  const [adminSection, setAdminSection] = useState<"locations" | "users">("locations");
+  const [adminSection, setAdminSection] = useState<"locations" | "requests" | "users">("locations");
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<Person | null>(null);
   const [persons, setPersons] = useState<Person[]>([]);
   const [loadingPersons, setLoadingPersons] = useState(false);
+
+  const [inviteToken, setInviteToken] = useState<string | null>(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith("#/join/mgr/")) {
+      return hash.replace("#/join/mgr/", "").trim();
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith("#/join/mgr/")) {
+        setInviteToken(hash.replace("#/join/mgr/", "").trim());
+      } else {
+        setInviteToken(null);
+      }
+    };
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   const fetchSession = useCallback(async (token: string) => {
     try {
@@ -66,6 +89,37 @@ export default function App() {
     setPersons([]);
     setView("home");
   };
+
+  if (inviteToken) {
+    return (
+      <>
+        <StatusBar
+          apiClient={client}
+          currentUser={currentUser}
+          onBrandClick={() => {
+            window.location.hash = "";
+            setInviteToken(null);
+            setView("home");
+          }}
+          onLogout={handleLogout}
+        />
+        <InvitationLanding
+          apiClient={client}
+          token={inviteToken}
+          authToken={authToken}
+          currentUser={currentUser}
+          onAuthSuccess={(t, u) => {
+            handleLoginSuccess(t, u);
+          }}
+          onBackToLanding={() => {
+            window.location.hash = "";
+            setInviteToken(null);
+            setView("home");
+          }}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -188,13 +242,20 @@ export default function App() {
               {/* Admin Navigation Controls */}
               {currentUser.roles.includes("Admin") && (
                 <>
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                     <button
                       className={adminSection === "locations" ? "btn-primary" : "btn-secondary"}
                       style={{ width: "auto", padding: "0.5rem 1.25rem" }}
                       onClick={() => setAdminSection("locations")}
                     >
                       📍 Locations (Cities / Buildings / Parkings)
+                    </button>
+                    <button
+                      className={adminSection === "requests" ? "btn-primary" : "btn-secondary"}
+                      style={{ width: "auto", padding: "0.5rem 1.25rem" }}
+                      onClick={() => setAdminSection("requests")}
+                    >
+                      📬 Manager Requests
                     </button>
                     <button
                       className={adminSection === "users" ? "btn-primary" : "btn-secondary"}
@@ -207,6 +268,10 @@ export default function App() {
 
                   {adminSection === "locations" && authToken && (
                     <LocationsAdminView apiClient={client} token={authToken} />
+                  )}
+
+                  {adminSection === "requests" && authToken && (
+                    <ManagerRequestsView apiClient={client} token={authToken} />
                   )}
 
                   {adminSection === "users" && (

@@ -6,6 +6,106 @@
   },
   "tags": [],
   "paths": {
+    "/api/admin/manager-requests": {
+      "get": {
+        "operationId": "Endpoints_listAdminManagerRequests",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ManagerRequest"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/manager-requests/{id}/approve": {
+      "post": {
+        "operationId": "Endpoints_approveManagerRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/manager-requests/{id}/reject": {
+      "post": {
+        "operationId": "Endpoints_rejectManagerRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/login": {
       "post": {
         "operationId": "Endpoints_login",
@@ -55,6 +155,34 @@
                 "schema": {
                   "$ref": "#/components/schemas/Person"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "operationId": "Endpoints_register",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
               }
             }
           }
@@ -301,6 +429,98 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HealthStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invitations/{token}": {
+      "get": {
+        "operationId": "Endpoints_getInvitation",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invitations/{token}/respond": {
+      "post": {
+        "operationId": "Endpoints_respondToInvitation",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespondInvitationResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/manager-requests": {
+      "get": {
+        "operationId": "Endpoints_getMyManagerRequests",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ManagerRequest"
+                  }
                 }
               }
             }
@@ -686,6 +906,46 @@
           }
         }
       },
+      "InvitationDetails": {
+        "type": "object",
+        "required": [
+          "token",
+          "role",
+          "isPreapproved",
+          "parkingId",
+          "parkingName",
+          "expiresAt"
+        ],
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/PersonRole"
+          },
+          "isPreapproved": {
+            "type": "boolean"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "parkingName": {
+            "type": "string"
+          },
+          "buildingName": {
+            "type": "string"
+          },
+          "cityName": {
+            "type": "string"
+          },
+          "createdByName": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        }
+      },
       "InvitationStatus": {
         "type": "string",
         "enum": [
@@ -784,6 +1044,60 @@
           }
         }
       },
+      "ManagerRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "parkingId",
+          "personId",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "invitationId": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ManagerRequestStatus"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "parkingName": {
+            "type": "string"
+          },
+          "cityName": {
+            "type": "string"
+          },
+          "personName": {
+            "type": "string"
+          },
+          "personEmail": {
+            "type": "string"
+          }
+        }
+      },
+      "ManagerRequestStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "approved",
+          "rejected"
+        ]
+      },
       "Parking": {
         "type": "object",
         "required": [
@@ -814,6 +1128,44 @@
             "type": "string"
           },
           "cityName": {
+            "type": "string"
+          }
+        }
+      },
+      "ParkingManager": {
+        "type": "object",
+        "required": [
+          "id",
+          "parkingId",
+          "personId",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "assignedBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "parkingName": {
+            "type": "string"
+          },
+          "cityName": {
+            "type": "string"
+          },
+          "personName": {
+            "type": "string"
+          },
+          "personEmail": {
             "type": "string"
           }
         }
@@ -855,6 +1207,50 @@
           "Manager",
           "Rider"
         ]
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "RespondInvitationResponse": {
+        "type": "object",
+        "required": [
+          "action",
+          "status",
+          "message"
+        ],
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "request": {
+            "$ref": "#/components/schemas/ManagerRequest"
+          },
+          "parkingManager": {
+            "$ref": "#/components/schemas/ParkingManager"
+          }
+        }
       },
       "UpdateBuildingRequest": {
         "type": "object",

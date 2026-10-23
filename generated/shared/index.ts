@@ -116,6 +116,60 @@ export interface ManagerInvitation {
   createdAt: string;
 }
 
+export interface RegisterRequest {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface InvitationDetails {
+  token: string;
+  role: PersonRole;
+  isPreapproved: boolean;
+  parkingId: string;
+  parkingName: string;
+  buildingName?: string;
+  cityName?: string;
+  createdByName?: string;
+  expiresAt: string;
+}
+
+export type ManagerRequestStatus = "pending" | "approved" | "rejected";
+
+export interface ManagerRequest {
+  id: string;
+  parkingId: string;
+  personId: string;
+  invitationId?: string;
+  status: ManagerRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+  parkingName?: string;
+  cityName?: string;
+  personName?: string;
+  personEmail?: string;
+}
+
+export interface ParkingManager {
+  id: string;
+  parkingId: string;
+  personId: string;
+  assignedBy?: string;
+  createdAt: string;
+  parkingName?: string;
+  cityName?: string;
+  personName?: string;
+  personEmail?: string;
+}
+
+export interface RespondInvitationResponse {
+  action: string;
+  status: string;
+  message: string;
+  request?: ManagerRequest;
+  parkingManager?: ParkingManager;
+}
+
 export class BycmeClient {
   private baseUrl: string;
 
@@ -273,6 +327,65 @@ export class BycmeClient {
     return this.request<ManagerInvitation[]>(
       `/api/parkings/${encodeURIComponent(parkingId)}/manager-invitations`,
       { headers }
+    );
+  }
+
+  register(body: RegisterRequest): Promise<LoginResponse> {
+    return this.request<LoginResponse>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  }
+
+  getInvitation(token: string): Promise<InvitationDetails> {
+    return this.request<InvitationDetails>(`/api/invitations/${encodeURIComponent(token)}`);
+  }
+
+  respondToInvitation(tokenStr: string, authToken?: string): Promise<RespondInvitationResponse> {
+    const headers: Record<string, string> = {};
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+    return this.request<RespondInvitationResponse>(
+      `/api/invitations/${encodeURIComponent(tokenStr)}/respond`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
+  }
+
+  getMyManagerRequests(authToken?: string): Promise<ManagerRequest[]> {
+    const headers: Record<string, string> = {};
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+    return this.request<ManagerRequest[]>("/api/me/manager-requests", { headers });
+  }
+
+  listAdminManagerRequests(authToken?: string): Promise<ManagerRequest[]> {
+    const headers: Record<string, string> = {};
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+    return this.request<ManagerRequest[]>("/api/admin/manager-requests", { headers });
+  }
+
+  approveManagerRequest(id: string, authToken?: string): Promise<ManagerRequest> {
+    const headers: Record<string, string> = {};
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+    return this.request<ManagerRequest>(
+      `/api/admin/manager-requests/${encodeURIComponent(id)}/approve`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
+  }
+
+  rejectManagerRequest(id: string, authToken?: string): Promise<ManagerRequest> {
+    const headers: Record<string, string> = {};
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+    return this.request<ManagerRequest>(
+      `/api/admin/manager-requests/${encodeURIComponent(id)}/reject`,
+      {
+        method: "POST",
+        headers,
+      }
     );
   }
 }
