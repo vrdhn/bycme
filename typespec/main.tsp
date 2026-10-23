@@ -114,6 +114,7 @@ enum InvitationStatus {
 
 model CreateManagerInvitationRequest {
   durationHours?: int32;
+  isPreapproved?: boolean;
 }
 
 model ManagerInvitation {
@@ -123,6 +124,7 @@ model ManagerInvitation {
   role: PersonRole;
   createdBy: string;
   status: InvitationStatus;
+  isPreapproved: boolean;
   expiresAt: string;
   inviteUrl: string;
   whatsappMessage: string;

@@ -641,6 +641,9 @@
           "durationHours": {
             "type": "integer",
             "format": "int32"
+          },
+          "isPreapproved": {
+            "type": "boolean"
           }
         }
       },
@@ -730,6 +733,7 @@
           "role",
           "createdBy",
           "status",
+          "isPreapproved",
           "expiresAt",
           "inviteUrl",
           "whatsappMessage",
@@ -753,6 +757,9 @@
           },
           "status": {
             "$ref": "#/components/schemas/InvitationStatus"
+          },
+          "isPreapproved": {
+            "type": "boolean"
           },
           "expiresAt": {
             "type": "string"

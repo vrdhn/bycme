@@ -19,6 +19,7 @@ export function ManagerInviteModal({
   onClose,
 }: ManagerInviteModalProps) {
   const [durationHours, setDurationHours] = useState<number>(24);
+  const [isPreapproved, setIsPreapproved] = useState<boolean>(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export function ManagerInviteModal({
     try {
       const invite = await apiClient.createManagerInvitation(
         parking.id,
-        { durationHours },
+        { durationHours, isPreapproved },
         token
       );
       setLatestInvite(invite);
@@ -137,6 +138,20 @@ export function ManagerInviteModal({
             </select>
           </div>
 
+          <div className="form-group" style={{ marginBottom: "1rem" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer", fontSize: "0.85rem", color: "var(--text-main)" }}>
+              <input
+                type="checkbox"
+                checked={isPreapproved}
+                onChange={(e) => setIsPreapproved(e.target.checked)}
+                style={{ cursor: "pointer" }}
+              />
+              <span>
+                <strong>Pre-Approved</strong> (Single-use direct assignment without Admin review)
+              </span>
+            </label>
+          </div>
+
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? "Generating Link..." : "Generate Manager Invite ➔"}
           </button>
@@ -153,9 +168,23 @@ export function ManagerInviteModal({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-              <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--primary-color)" }}>
-                READY TO SHARE
-              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--primary-color)" }}>
+                  READY TO SHARE
+                </span>
+                <span
+                  style={{
+                    fontSize: "0.7rem",
+                    padding: "0.15rem 0.4rem",
+                    borderRadius: "0.25rem",
+                    background: latestInvite.isPreapproved ? "#fef3c7" : "#e0f2fe",
+                    color: latestInvite.isPreapproved ? "#92400e" : "#0369a1",
+                    fontWeight: 600,
+                  }}
+                >
+                  {latestInvite.isPreapproved ? "⚡ Pre-Approved (1-use)" : "📋 Standard (Approval Required)"}
+                </span>
+              </div>
               <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                 Expires {new Date(latestInvite.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </span>
@@ -222,8 +251,22 @@ export function ManagerInviteModal({
                   }}
                 >
                   <div>
-                    <div style={{ fontFamily: "monospace", fontSize: "0.75rem", fontWeight: 600 }}>
-                      ...{inv.token}
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                      <span style={{ fontFamily: "monospace", fontSize: "0.75rem", fontWeight: 600 }}>
+                        ...{inv.token}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "0.65rem",
+                          padding: "0.1rem 0.35rem",
+                          borderRadius: "0.25rem",
+                          background: inv.isPreapproved ? "#fef3c7" : "#e0f2fe",
+                          color: inv.isPreapproved ? "#92400e" : "#0369a1",
+                          fontWeight: 600,
+                        }}
+                      >
+                        {inv.isPreapproved ? "⚡ Pre-Approved" : "📋 Standard"}
+                      </span>
                     </div>
                     <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
                       Expires: {new Date(inv.expiresAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}

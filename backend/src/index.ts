@@ -53,6 +53,7 @@ function formatManagerInvitation(
     role: string;
     created_by: string;
     status: string;
+    is_preapproved?: number;
     expires_at: string;
     created_at: string;
     parking_name?: string;
@@ -62,6 +63,7 @@ function formatManagerInvitation(
   frontendBase: string = "https://bycme-staging.pages.dev",
   explicitHours?: number
 ) {
+  const isPreapproved = Boolean(row.is_preapproved);
   const inviteUrl = `${frontendBase}/#/join/mgr/${row.token}`;
   const hours =
     explicitHours ||
@@ -74,11 +76,15 @@ function formatManagerInvitation(
     : "this parking lot";
   const inviter = row.created_by_name || "System Admin";
 
+  const accessNote = isPreapproved
+    ? `Note: This is a direct pre-approved invitation (single-use) valid for ${hours} hours.`
+    : `Note: This link is valid for ${hours} hours. Submissions require Admin approval.`;
+
   const whatsappMessage =
     `${inviter} is inviting you to manage ${parkingInfo}.\n` +
     `Click here to create an account and start:\n` +
     `${inviteUrl}\n\n` +
-    `Note: This link expires in ${hours} hours.`;
+    accessNote;
 
   return {
     id: row.id,
@@ -87,6 +93,7 @@ function formatManagerInvitation(
     role: row.role,
     createdBy: row.created_by,
     status: row.status,
+    isPreapproved,
     expiresAt: row.expires_at,
     inviteUrl,
     whatsappMessage,
@@ -607,6 +614,7 @@ export default {
         );
         const body = ((await request.json().catch(() => ({}))) || {}) as {
           durationHours?: number;
+          isPreapproved?: boolean;
         };
 
         const parking = await env.DB.prepare(
@@ -625,19 +633,20 @@ export default {
           typeof body.durationHours === "number" && body.durationHours > 0
             ? body.durationHours
             : 24;
+        const isPreapproved = body.isPreapproved ? 1 : 0;
         const id = `inv-${crypto.randomUUID().slice(0, 8)}`;
         const token = generateCompactToken();
         const expiresAt = new Date(Date.now() + durationHours * 3600 * 1000).toISOString();
 
         await env.DB.prepare(
-          "INSERT INTO invitations (id, token, parking_id, role, created_by, status, expires_at) " +
-            "VALUES (?, ?, ?, 'Manager', ?, 'active', ?)"
+          "INSERT INTO invitations (id, token, parking_id, role, created_by, status, is_preapproved, expires_at) " +
+            "VALUES (?, ?, ?, 'Manager', ?, 'active', ?, ?)"
         )
-          .bind(id, token, parkingId, caller.id, expiresAt)
+          .bind(id, token, parkingId, caller.id, isPreapproved, expiresAt)
           .run();
 
         const invRow = await env.DB.prepare(
-          "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.expires_at, i.created_at, " +
+          "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.is_preapproved, i.expires_at, i.created_at, " +
             "p.name as parking_name, c.name as city_name, u.name as created_by_name " +
             "FROM invitations i " +
             "LEFT JOIN parkings p ON i.parking_id = p.id " +
@@ -673,7 +682,7 @@ export default {
         );
 
         const res = await env.DB.prepare(
-          "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.expires_at, i.created_at, " +
+          "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.is_preapproved, i.expires_at, i.created_at, " +
             "p.name as parking_name, c.name as city_name, u.name as created_by_name " +
             "FROM invitations i " +
             "LEFT JOIN parkings p ON i.parking_id = p.id " +

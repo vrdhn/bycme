@@ -67,6 +67,16 @@
 * **Modular Seed**:
   * `seed-003-invitations.sql` configuring active sample manager invitation.
 
+### `fix002`: Pre-Approved Manager Invitations (Direct 1-Time Assignment)
+* **Pre-Approved vs Standard Mode**:
+  * Toggle in `ManagerInviteModal` to mark manager invitations as pre-approved (`is_preapproved = 1`).
+  * Pre-approved invitations are single-use tokens granting immediate manager assignment without administrative review.
+  * Standard invitations allow submission of management requests requiring admin approval.
+* **Database & Contract Enhancements**:
+  * `is_preapproved INTEGER NOT NULL DEFAULT 0` added to `invitations` table via migration `0004_invitation_preapproved.sql`.
+  * TypeSpec and TypeScript client models updated with `isPreapproved` flag.
+  * Tailored WhatsApp copy reflecting pre-approved status.
+
 ---
 
 ## 2. Database
@@ -143,6 +153,7 @@
 | `role` | `TEXT` | `NOT NULL CHECK (role IN ('Manager', 'Rider'))` | Target invitation role | `feat004` |
 | `created_by` | `TEXT` | `NOT NULL REFERENCES persons(id) ON DELETE CASCADE` | Issuer foreign key to `persons.id` | `feat004` |
 | `status` | `TEXT` | `NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'used', 'revoked'))` | Invitation state | `feat004` |
+| `is_preapproved` | `INTEGER` | `NOT NULL DEFAULT 0` | 1 if single-use direct assignment, 0 if request approval | `fix002` |
 | `expires_at` | `DATETIME` | `NOT NULL` | Expiry timestamp | `feat004` |
 | `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Record creation timestamp | `feat004` |
 
@@ -157,13 +168,14 @@
 | `sqlsource/migrations/0001_auth.sql` | Authentication tables, roles, and indexes | `feat002` |
 | `sqlsource/migrations/0002_locations.sql` | Location hierarchy: cities, buildings, parkings | `feat003` |
 | `sqlsource/migrations/0003_invitations.sql` | Invitations table for managers and riders with expiry | `feat004` |
+| `sqlsource/migrations/0004_invitation_preapproved.sql` | Pre-approved single-use flag on invitations | `fix002` |
 
 ### Seed Files
 | Seed File | Description | Feature |
 | :--- | :--- | :--- |
 | `sqlsource/seeds/seed-001-admin.sql` | Initial System Administrator (`admin@bycme.in`) | `feat002` |
 | `sqlsource/seeds/seed-002-locations.sql` | Baseline Indian cities, buildings, and parking stands | `feat003` |
-| `sqlsource/seeds/seed-003-invitations.sql` | Active sample parking manager invitation | `feat004` |
+| `sqlsource/seeds/seed-003-invitations.sql` | Active sample parking manager invitation | `feat004, fix002` |
 
 ---
 
@@ -189,8 +201,8 @@
 * `CreateParkingRequest`: `{ buildingId: string, name: string, capacity: int32 }` (`feat003`)
 * `UpdateParkingRequest`: `{ buildingId?: string, name?: string, capacity?: int32 }` (`feat003`)
 * `InvitationStatus`: `"active" | "used" | "revoked"` (`feat004`)
-* `CreateManagerInvitationRequest`: `{ durationHours?: int32 }` (`feat004`)
-* `ManagerInvitation`: `{ id: string, token: string, parkingId: string, role: PersonRole, createdBy: string, status: InvitationStatus, expiresAt: string, inviteUrl: string, whatsappMessage: string, parkingName?: string, cityName?: string, createdByName?: string, createdAt: string }` (`feat004`)
+* `CreateManagerInvitationRequest`: `{ durationHours?: int32, isPreapproved?: boolean }` (`feat004, fix002`)
+* `ManagerInvitation`: `{ id: string, token: string, parkingId: string, role: PersonRole, createdBy: string, status: InvitationStatus, isPreapproved: boolean, expiresAt: string, inviteUrl: string, whatsappMessage: string, parkingName?: string, cityName?: string, createdByName?: string, createdAt: string }` (`feat004, fix002`)
 
 ### Endpoints Table
 
@@ -209,5 +221,5 @@
 | `feat003` | `GET` | `/api/parkings` | List all parking stands with parent details | `Authorization: Bearer <token>` | None | `Parking[]` |
 | `feat003` | `POST` | `/api/parkings` | Create new parking stand | `Authorization: Bearer <token>` (Admin) | `CreateParkingRequest` | `Parking` |
 | `feat003` | `PUT` | `/api/parkings/{id}` | Update parking stand spelling / capacity | `Authorization: Bearer <token>` (Admin) | `UpdateParkingRequest` | `Parking` |
-| `feat004` | `POST` | `/api/parkings/{id}/manager-invitations` | Generate manager invitation link & WhatsApp text with expiry | `Authorization: Bearer <token>` (Admin) | `CreateManagerInvitationRequest` | `ManagerInvitation` |
-| `feat004` | `GET` | `/api/parkings/{id}/manager-invitations` | List unexpired active manager invitations for parking | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |
+| `feat004, fix002` | `POST` | `/api/parkings/{id}/manager-invitations` | Generate manager invitation link & WhatsApp text with expiry | `Authorization: Bearer <token>` (Admin) | `CreateManagerInvitationRequest` | `ManagerInvitation` |
+| `feat004, fix002` | `GET` | `/api/parkings/{id}/manager-invitations` | List unexpired active manager invitations for parking | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |

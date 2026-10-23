@@ -96,6 +96,7 @@ export type InvitationStatus = "active" | "used" | "revoked";
 
 export interface CreateManagerInvitationRequest {
   durationHours?: number;
+  isPreapproved?: boolean;
 }
 
 export interface ManagerInvitation {
@@ -105,6 +106,7 @@ export interface ManagerInvitation {
   role: PersonRole;
   createdBy: string;
   status: InvitationStatus;
+  isPreapproved: boolean;
   expiresAt: string;
   inviteUrl: string;
   whatsappMessage: string;
