@@ -191,7 +191,7 @@ export interface Cycle {
 }
 
 export interface CreateCycleRequest {
-  publicCycleId: string;
+  publicCycleId?: string;
   brand: string;
   cycleModel: string;
   colour: string;

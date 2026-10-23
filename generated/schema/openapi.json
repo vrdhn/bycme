@@ -1123,7 +1123,6 @@
       "CreateCycleRequest": {
         "type": "object",
         "required": [
-          "publicCycleId",
           "brand",
           "cycleModel",
           "colour",

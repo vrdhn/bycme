@@ -143,6 +143,17 @@
   * Replaced single admin quick-fill button in `LoginForm` with client-side hardwired account selector menu.
   * Instantly populates credentials for System Administrator, all 5 parking managers, and pending applicant without creating API dependencies.
 
+### `fix006`: Cycle Registration Enhancements & Form Validation
+* **Auto-Generated Public Cycle ID**:
+  * `public_cycle_id` auto-generated sequentially based on station city prefix (`PUN-XXX`, `BLR-XXX`, `HYD-XXX`, `CYC-XXX`).
+  * Add Cycle modal displays ID as locked auto-assigned value; made optional in `CreateCycleRequest`.
+* **Combobox Metadata Suggestions**:
+  * Brand, Model, and Frame Colour inputs provide editable datalist dropdowns populated from existing cycle inventory.
+* **Non-Editable QR Code Token**:
+  * Manual text editing disabled on QR code token input in both Add and Edit modals (`readOnly`); token regeneration supported via button.
+* **Numeric Combination Lock Code**:
+  * Strict numbers-only validation enforced on combination lock code input in frontend (`replace(/\D/g, "")`) and backend Worker (`/^\d+$/`).
+
 ---
 
 ## 2. Database
@@ -333,7 +344,7 @@
 * `RespondInvitationResponse`: `{ action: string, status: string, message: string, request?: ManagerRequest, parkingManager?: ParkingManager }` (`feat005`)
 * `CycleStatus`: `"Working" | "Puncture" | "Broken"` (`feat006`)
 * `Cycle`: `{ id: string, publicCycleId: string, parkingId: string, brand: string, cycleModel: string, colour: string, status: CycleStatus, lockCode: string, qrCode: string, qrUrl: string, createdAt: string, updatedAt: string, parkingName?: string, cityName?: string }` (`feat006`)
-* `CreateCycleRequest`: `{ publicCycleId: string, brand: string, cycleModel: string, colour: string, status?: CycleStatus, lockCode: string, qrCode?: string }` (`feat006`)
+* `CreateCycleRequest`: `{ publicCycleId?: string, brand: string, cycleModel: string, colour: string, status?: CycleStatus, lockCode: string, qrCode?: string }` (`feat006, fix006`)
 * `UpdateCycleRequest`: `{ brand?: string, cycleModel?: string, colour?: string, status?: CycleStatus, lockCode?: string, qrCode?: string, parkingId?: string }` (`feat006`)
 
 ### Endpoints Table
@@ -366,6 +377,6 @@
 | `fix003` | `POST` | `/api/admin/invitations/{id}/revoke` | Revoke / expire invitation link immediately | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation` |
 | `feat006, fix004` | `GET` | `/api/me/parkings` | List parking stations managed by caller | `Authorization: Bearer <token>` (Manager) | None | `Parking[]` |
 | `feat006, fix004` | `GET` | `/api/parkings/{id}/cycles` | List cycles stationed at parking stand | `Authorization: Bearer <token>` (Manager) | None | `Cycle[]` |
-| `feat006, fix004` | `POST` | `/api/parkings/{id}/cycles` | Register new cycle to parking stand | `Authorization: Bearer <token>` (Manager) | `CreateCycleRequest` | `Cycle` |
-| `feat006, fix004` | `PUT` | `/api/cycles/{id}` | Update cycle condition, lock code, QR code, or metadata | `Authorization: Bearer <token>` (Manager) | `UpdateCycleRequest` | `Cycle` |
+| `feat006, fix004, fix006` | `POST` | `/api/parkings/{id}/cycles` | Register new cycle to parking stand (auto-generates cycle ID, validates numeric lock code) | `Authorization: Bearer <token>` (Manager) | `CreateCycleRequest` | `Cycle` |
+| `feat006, fix004, fix006` | `PUT` | `/api/cycles/{id}` | Update cycle condition, lock code, QR code, or metadata (validates numeric lock code) | `Authorization: Bearer <token>` (Manager) | `UpdateCycleRequest` | `Cycle` |
 | `feat006` | `GET` | `/api/cycles/lookup/{identifier}` | Search cycle by publicCycleId or qr_code | `Authorization: Bearer <token>` (Manager/Admin) | None | `Cycle` |

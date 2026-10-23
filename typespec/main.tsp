@@ -217,7 +217,7 @@ model Cycle {
 }
 
 model CreateCycleRequest {
-  publicCycleId: string;
+  publicCycleId?: string;
   brand: string;
   cycleModel: string;
   colour: string;

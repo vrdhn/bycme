@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   BycmeClient,
   Parking,
@@ -88,8 +88,38 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
     loadCycles();
   }, [loadCycles]);
 
+  const selectedParking = parkings.find((p) => p.id === selectedParkingId);
+
+  const existingBrands = useMemo(() => {
+    return Array.from(new Set(cycles.map((c) => c.brand).filter(Boolean))).sort();
+  }, [cycles]);
+
+  const existingModels = useMemo(() => {
+    return Array.from(new Set(cycles.map((c) => c.cycleModel).filter(Boolean))).sort();
+  }, [cycles]);
+
+  const existingColours = useMemo(() => {
+    return Array.from(new Set(cycles.map((c) => c.colour).filter(Boolean))).sort();
+  }, [cycles]);
+
+  const computeNextCycleId = useCallback(() => {
+    const cityName = selectedParking?.cityName;
+    const prefix = cityName ? cityName.slice(0, 3).toUpperCase() : "CYC";
+    let maxNum = 0;
+    for (const c of cycles) {
+      if (c.publicCycleId.startsWith(`${prefix}-`)) {
+        const parts = c.publicCycleId.split("-");
+        const num = parseInt(parts[1], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+    return `${prefix}-${String(maxNum + 1).padStart(3, "0")}`;
+  }, [selectedParking, cycles]);
+
   const handleOpenAdd = () => {
-    setAddPublicId("");
+    setAddPublicId(computeNextCycleId());
     setAddBrand("");
     setAddModel("");
     setAddColour("");
@@ -177,8 +207,6 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
       // fallback
     }
   };
-
-  const selectedParking = parkings.find((p) => p.id === selectedParkingId);
 
   const filteredCycles = cycles.filter((c) => {
     const matchesSearch =
@@ -452,15 +480,24 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
 
             <form onSubmit={handleAddCycle}>
               <div className="form-group">
-                <label className="form-label">Public Cycle ID (e.g. ABC-001)</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <label className="form-label">Public Cycle ID (Auto-generated)</label>
+                  <span style={{ fontSize: "0.75rem", color: "var(--primary-color)", fontWeight: 600 }}>
+                    🔒 Auto-assigned
+                  </span>
+                </div>
                 <input
                   type="text"
-                  required
+                  readOnly
                   className="form-input"
-                  placeholder="e.g. ABC-001"
                   value={addPublicId}
-                  onChange={(e) => setAddPublicId(e.target.value)}
-                  style={{ fontFamily: "monospace", textTransform: "uppercase" }}
+                  style={{
+                    fontFamily: "monospace",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    background: "var(--bg-muted, #f1f5f9)",
+                    cursor: "not-allowed",
+                  }}
                 />
               </div>
 
@@ -470,11 +507,17 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                   <input
                     type="text"
                     required
+                    list="brand-options-list"
                     className="form-input"
-                    placeholder="e.g. Hero, Firefox"
+                    placeholder="Select or enter brand"
                     value={addBrand}
                     onChange={(e) => setAddBrand(e.target.value)}
                   />
+                  <datalist id="brand-options-list">
+                    {existingBrands.map((b) => (
+                      <option key={b} value={b} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div className="form-group">
@@ -482,11 +525,17 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                   <input
                     type="text"
                     required
+                    list="model-options-list"
                     className="form-input"
-                    placeholder="e.g. Sprint Pro"
+                    placeholder="Select or enter model"
                     value={addModel}
                     onChange={(e) => setAddModel(e.target.value)}
                   />
+                  <datalist id="model-options-list">
+                    {existingModels.map((m) => (
+                      <option key={m} value={m} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
@@ -496,11 +545,17 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                   <input
                     type="text"
                     required
+                    list="colour-options-list"
                     className="form-input"
-                    placeholder="e.g. Matte Black"
+                    placeholder="Select or enter colour"
                     value={addColour}
                     onChange={(e) => setAddColour(e.target.value)}
                   />
+                  <datalist id="colour-options-list">
+                    {existingColours.map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div className="form-group">
@@ -518,37 +573,44 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
               </div>
 
               <div className="form-group">
-                <label className="form-label">Combination Lock Code</label>
+                <label className="form-label">Combination Lock Code (Numbers only)</label>
                 <input
                   type="text"
                   required
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="form-input"
                   placeholder="e.g. 4521"
                   value={addLockCode}
-                  onChange={(e) => setAddLockCode(e.target.value)}
+                  onChange={(e) => setAddLockCode(e.target.value.replace(/\D/g, ""))}
                   style={{ fontFamily: "monospace", fontWeight: 700 }}
                 />
               </div>
 
               <div className="form-group">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <label className="form-label">QR Code Token (Compact Base64url)</label>
+                  <label className="form-label">QR Code Token (Auto-generated)</label>
                   <button
                     type="button"
                     className="btn-text"
                     style={{ fontSize: "0.75rem", padding: 0 }}
                     onClick={() => setAddQrCode(generateToken())}
+                    title="Generate a fresh token"
                   >
                     🎲 Regenerate
                   </button>
                 </div>
                 <input
                   type="text"
-                  required
+                  readOnly
                   className="form-input"
                   value={addQrCode}
-                  onChange={(e) => setAddQrCode(e.target.value)}
-                  style={{ fontFamily: "monospace", fontSize: "0.8rem" }}
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "0.8rem",
+                    background: "var(--bg-muted, #f1f5f9)",
+                    cursor: "not-allowed",
+                  }}
                 />
               </div>
 
@@ -611,13 +673,15 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
               </div>
 
               <div className="form-group">
-                <label className="form-label">Combination Lock Code</label>
+                <label className="form-label">Combination Lock Code (Numbers only)</label>
                 <input
                   type="text"
                   required
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className="form-input"
                   value={editLockCode}
-                  onChange={(e) => setEditLockCode(e.target.value)}
+                  onChange={(e) => setEditLockCode(e.target.value.replace(/\D/g, ""))}
                   style={{ fontFamily: "monospace", fontWeight: 700 }}
                 />
               </div>
@@ -627,6 +691,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                 <input
                   type="text"
                   required
+                  list="colour-options-list"
                   className="form-input"
                   value={editColour}
                   onChange={(e) => setEditColour(e.target.value)}
@@ -635,23 +700,28 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
 
               <div className="form-group">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <label className="form-label">QR Code Token</label>
+                  <label className="form-label">QR Code Token (Non-editable)</label>
                   <button
                     type="button"
                     className="btn-text"
                     style={{ fontSize: "0.75rem", padding: 0 }}
                     onClick={() => setEditQrCode(generateToken())}
+                    title="Generate a fresh token"
                   >
                     🎲 Regenerate Token
                   </button>
                 </div>
                 <input
                   type="text"
-                  required
+                  readOnly
                   className="form-input"
                   value={editQrCode}
-                  onChange={(e) => setEditQrCode(e.target.value)}
-                  style={{ fontFamily: "monospace", fontSize: "0.8rem" }}
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: "0.8rem",
+                    background: "var(--bg-muted, #f1f5f9)",
+                    cursor: "not-allowed",
+                  }}
                 />
               </div>
 

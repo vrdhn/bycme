@@ -1383,27 +1383,66 @@ export default {
         };
 
         if (
-          !body.publicCycleId ||
-          !body.brand ||
-          !body.cycleModel ||
-          !body.colour ||
-          !body.lockCode
+          !body.brand?.trim() ||
+          !body.cycleModel?.trim() ||
+          !body.colour?.trim() ||
+          !body.lockCode?.trim()
         ) {
           return jsonResponse(
-            { error: "publicCycleId, brand, cycleModel, colour, and lockCode are required" },
+            { error: "brand, cycleModel, colour, and lockCode are required" },
             400
           );
         }
 
-        const publicId = body.publicCycleId.trim().toUpperCase();
+        const lockCode = body.lockCode.trim();
+        if (!/^\d+$/.test(lockCode)) {
+          return jsonResponse(
+            { error: "Combination lock code must contain numbers only" },
+            400
+          );
+        }
 
-        const existingId = await env.DB.prepare(
-          "SELECT id FROM cycles WHERE LOWER(public_cycle_id) = LOWER(?)"
-        )
-          .bind(publicId)
-          .first();
-        if (existingId) {
-          return jsonResponse({ error: `Cycle with ID '${publicId}' already exists` }, 400);
+        let publicId = body.publicCycleId?.trim().toUpperCase();
+        if (!publicId) {
+          const locInfo = await env.DB.prepare(
+            "SELECT c.name as city_name FROM parkings p " +
+              "JOIN buildings b ON p.building_id = b.id " +
+              "JOIN cities c ON b.city_id = c.id " +
+              "WHERE p.id = ?"
+          )
+            .bind(parkingId)
+            .first<{ city_name: string }>();
+
+          const prefix = locInfo?.city_name
+            ? locInfo.city_name.slice(0, 3).toUpperCase()
+            : "CYC";
+
+          const existingCycles = await env.DB.prepare(
+            "SELECT public_cycle_id FROM cycles WHERE public_cycle_id LIKE ?"
+          )
+            .bind(`${prefix}-%`)
+            .all<{ public_cycle_id: string }>();
+
+          let maxSeq = 0;
+          for (const row of existingCycles.results || []) {
+            const parts = row.public_cycle_id.split("-");
+            if (parts.length >= 2) {
+              const num = parseInt(parts[1], 10);
+              if (!isNaN(num) && num > maxSeq) {
+                maxSeq = num;
+              }
+            }
+          }
+          publicId = `${prefix}-${String(maxSeq + 1).padStart(3, "0")}`;
+        } else {
+          const existingId = await env.DB.prepare(
+            "SELECT id FROM cycles WHERE LOWER(public_cycle_id) = LOWER(?)"
+          )
+            .bind(publicId)
+            .first();
+          if (existingId) {
+            return jsonResponse({ error: `Cycle with ID '${publicId}' already exists` }, 400);
+          }
         }
 
         const qrCode = body.qrCode?.trim() || generateCompactToken();
@@ -1497,6 +1536,12 @@ export default {
             ? body.status
             : existing.status;
         const newLockCode = body.lockCode !== undefined ? body.lockCode.trim() : existing.lock_code;
+        if (body.lockCode !== undefined && !/^\d+$/.test(newLockCode)) {
+          return jsonResponse(
+            { error: "Combination lock code must contain numbers only" },
+            400
+          );
+        }
         const newQrCode = body.qrCode !== undefined ? body.qrCode.trim() : existing.qr_code;
         const newParkingId = body.parkingId !== undefined ? body.parkingId : existing.parking_id;
 
