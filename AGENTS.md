@@ -35,7 +35,7 @@
 - In-code comments: terse, short phrases, current-state only
 
 ## Version Control
-- Commit messages: must include summary of user prompts included in the commit
+- Commit messages: must include terse summary of user prompts (short bullet points conforming to communication rules, not verbatim text)
 
 ## Standing Instructions & Active Architecture
 - Toolchain cache: strictly maintained at `~/.cache/bycme-repo/` (overridable via `BYCME_CACHE_DIR`)
