@@ -92,6 +92,7 @@ model Parking {
   createdAt: string;
   buildingName?: string;
   cityName?: string;
+  buildingType?: BuildingType;
 }
 
 model CreateParkingRequest {

@@ -122,6 +122,22 @@
   * System Administrators without the `Manager` role default to `🛡️ Admin Console` and do not see the Manager Workspace.
   * Backend endpoints (`/api/me/parkings`, `/api/parkings/{id}/cycles`, `/api/cycles/{id}`) strictly enforce `Manager` role requirement and explicit assignment in `parking_managers`.
 
+### `fix005`: Residential Private vs Public Parkings & Manager Restrictions
+* **Domain Privacy Semantics**:
+  * `Private` classification corresponds to Residential facilities (eligible for Manager assignment).
+  * `Public` classification corresponds to Campus, Office, and Transit hubs (strictly ineligible for Managers).
+* **Strict Manager Restriction**:
+  * `POST /api/parkings/{id}/manager-invitations` rejects invitation creation on public parkings with `400 Bad Request`.
+  * `POST /api/invitations/{token}/respond` blocks claiming or requesting management on public parkings.
+  * `POST /api/admin/manager-requests/{id}/approve` prevents approval of manager requests for public parkings.
+* **UI Controls**:
+  * `LocationsAdminView`: Building options explicitly labeled `Private (Residential)` vs `Public (Campus / Office / Transit)`.
+  * Parkings table renders `Private (Residential)` or `Public` badge.
+  * `🔑 Invite` button rendered strictly for parkings under `Private` residential buildings; public parkings show `No Manager (Public)`.
+* **Expanded Seeds**:
+  * Added multiple residential buildings and private stands across Pune (`Greenwood Heights`), Bengaluru (`Palm Meadows Enclave`), and Hyderabad (`My Home Bhooja`).
+  * Expanded cycle inventory across multiple residential locations.
+
 ---
 
 ## 2. Database
@@ -171,7 +187,7 @@
 | `id` | `TEXT` | `PRIMARY KEY` | Unique building identifier | `feat003` |
 | `city_id` | `TEXT` | `NOT NULL REFERENCES cities(id) ON DELETE CASCADE` | Parent city foreign key | `feat003` |
 | `name` | `TEXT` | `NOT NULL` | Building facility name | `feat003` |
-| `building_type` | `TEXT` | `NOT NULL CHECK (building_type IN ('Private', 'Public'))` | Facility type classification | `feat003` |
+| `building_type` | `TEXT` | `NOT NULL CHECK (building_type IN ('Private', 'Public'))` | Facility type classification (`Private` = Residential, `Public` = Campus/Office/Transit) | `feat003, fix005` |
 | `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Record creation timestamp | `feat003` |
 
 * **Indexes**:
@@ -299,7 +315,7 @@
 * `Building`: `{ id: string, cityId: string, name: string, buildingType: BuildingType, createdAt: string, cityName?: string }` (`feat003`)
 * `CreateBuildingRequest`: `{ cityId: string, name: string, buildingType: BuildingType }` (`feat003`)
 * `UpdateBuildingRequest`: `{ cityId?: string, name?: string, buildingType?: BuildingType }` (`feat003`)
-* `Parking`: `{ id: string, buildingId: string, name: string, capacity: int32, createdAt: string, buildingName?: string, cityName?: string }` (`feat003`)
+* `Parking`: `{ id: string, buildingId: string, name: string, capacity: int32, createdAt: string, buildingName?: string, cityName?: string, buildingType?: BuildingType }` (`feat003, fix005`)
 * `CreateParkingRequest`: `{ buildingId: string, name: string, capacity: int32 }` (`feat003`)
 * `UpdateParkingRequest`: `{ buildingId?: string, name?: string, capacity?: int32 }` (`feat003`)
 * `InvitationStatus`: `"active" | "used" | "revoked"` (`feat004`)
@@ -333,13 +349,13 @@
 | `feat003` | `GET` | `/api/parkings` | List all parking stands with parent details | `Authorization: Bearer <token>` | None | `Parking[]` |
 | `feat003` | `POST` | `/api/parkings` | Create new parking stand | `Authorization: Bearer <token>` (Admin) | `CreateParkingRequest` | `Parking` |
 | `feat003` | `PUT` | `/api/parkings/{id}` | Update parking stand spelling / capacity | `Authorization: Bearer <token>` (Admin) | `UpdateParkingRequest` | `Parking` |
-| `feat004, fix002` | `POST` | `/api/parkings/{id}/manager-invitations` | Generate manager invitation link & WhatsApp text with expiry | `Authorization: Bearer <token>` (Admin) | `CreateManagerInvitationRequest` | `ManagerInvitation` |
+| `feat004, fix002, fix005` | `POST` | `/api/parkings/{id}/manager-invitations` | Generate manager invitation link & WhatsApp text with expiry (Private residential parkings only) | `Authorization: Bearer <token>` (Admin) | `CreateManagerInvitationRequest` | `ManagerInvitation` |
 | `feat004, fix002` | `GET` | `/api/parkings/{id}/manager-invitations` | List unexpired active manager invitations for parking | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |
 | `feat005` | `GET` | `/api/invitations/{token}` | Public inspection of invitation link details | None | None | `InvitationDetails` |
-| `feat005` | `POST` | `/api/invitations/{token}/respond` | Submit management request or claim pre-approved assignment | `Authorization: Bearer <token>` | None | `RespondInvitationResponse` |
+| `feat005, fix005` | `POST` | `/api/invitations/{token}/respond` | Submit management request or claim pre-approved assignment (Private parkings only) | `Authorization: Bearer <token>` | None | `RespondInvitationResponse` |
 | `feat005` | `GET` | `/api/me/manager-requests` | List current user's submitted manager requests | `Authorization: Bearer <token>` | None | `ManagerRequest[]` |
 | `feat005` | `GET` | `/api/admin/manager-requests` | List all submitted manager requests across parkings | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest[]` |
-| `feat005` | `POST` | `/api/admin/manager-requests/{id}/approve` | Approve manager request, create manager assignment, add role | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
+| `feat005, fix005` | `POST` | `/api/admin/manager-requests/{id}/approve` | Approve manager request, create manager assignment, add role (Private parkings only) | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
 | `feat005` | `POST` | `/api/admin/manager-requests/{id}/reject` | Reject manager request | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
 | `fix003` | `GET` | `/api/admin/invitations` | List invitations across all parking stations with joined details | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |
 | `fix003` | `POST` | `/api/admin/invitations/{id}/revoke` | Revoke / expire invitation link immediately | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation` |

@@ -1496,6 +1496,9 @@
           },
           "cityName": {
             "type": "string"
+          },
+          "buildingType": {
+            "$ref": "#/components/schemas/BuildingType"
           }
         }
       },

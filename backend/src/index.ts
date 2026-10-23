@@ -610,7 +610,7 @@ export default {
 
         const buildingId = url.searchParams.get("buildingId");
         let query =
-          "SELECT p.id, p.building_id as buildingId, p.name, p.capacity, p.created_at as createdAt, b.name as buildingName, c.name as cityName " +
+          "SELECT p.id, p.building_id as buildingId, p.name, p.capacity, p.created_at as createdAt, b.name as buildingName, c.name as cityName, b.building_type as buildingType " +
           "FROM parkings p LEFT JOIN buildings b ON p.building_id = b.id LEFT JOIN cities c ON b.city_id = c.id";
         let res;
         if (buildingId) {
@@ -650,7 +650,7 @@ export default {
           .run();
 
         const created = await env.DB.prepare(
-          "SELECT p.id, p.building_id as buildingId, p.name, p.capacity, p.created_at as createdAt, b.name as buildingName, c.name as cityName " +
+          "SELECT p.id, p.building_id as buildingId, p.name, p.capacity, p.created_at as createdAt, b.name as buildingName, c.name as cityName, b.building_type as buildingType " +
           "FROM parkings p LEFT JOIN buildings b ON p.building_id = b.id LEFT JOIN cities c ON b.city_id = c.id WHERE p.id = ?"
         )
           .bind(id)
@@ -693,7 +693,7 @@ export default {
           .run();
 
         const updated = await env.DB.prepare(
-          "SELECT p.id, p.building_id as buildingId, p.name, p.capacity, p.created_at as createdAt, b.name as buildingName, c.name as cityName " +
+          "SELECT p.id, p.building_id as buildingId, p.name, p.capacity, p.created_at as createdAt, b.name as buildingName, c.name as cityName, b.building_type as buildingType " +
           "FROM parkings p LEFT JOIN buildings b ON p.building_id = b.id LEFT JOIN cities c ON b.city_id = c.id WHERE p.id = ?"
         )
           .bind(id)
@@ -725,15 +725,22 @@ export default {
         };
 
         const parking = await env.DB.prepare(
-          "SELECT p.id, p.name as parking_name, c.name as city_name " +
+          "SELECT p.id, p.name as parking_name, c.name as city_name, b.building_type " +
             "FROM parkings p LEFT JOIN buildings b ON p.building_id = b.id LEFT JOIN cities c ON b.city_id = c.id " +
             "WHERE p.id = ?"
         )
           .bind(parkingId)
-          .first<{ id: string; parking_name: string; city_name: string }>();
+          .first<{ id: string; parking_name: string; city_name: string; building_type: string }>();
 
         if (!parking) {
           return jsonResponse({ error: "Parking not found" }, 404);
+        }
+
+        if (parking.building_type !== "Private") {
+          return jsonResponse(
+            { error: "Manager invitations are only permitted for private (residential) parkings. Public parkings cannot have managers." },
+            400
+          );
         }
 
         const durationHours =
@@ -864,7 +871,7 @@ export default {
 
         const inv = await env.DB.prepare(
           "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.is_preapproved, i.expires_at, " +
-            "p.name as parking_name, c.name as city_name " +
+            "p.name as parking_name, c.name as city_name, b.building_type " +
             "FROM invitations i " +
             "LEFT JOIN parkings p ON i.parking_id = p.id " +
             "LEFT JOIN buildings b ON p.building_id = b.id " +
@@ -876,6 +883,13 @@ export default {
 
         if (!inv) {
           return jsonResponse({ error: "Invitation not found or has expired" }, 404);
+        }
+
+        if (inv.building_type !== "Private") {
+          return jsonResponse(
+            { error: "This parking is public and cannot have a manager assigned." },
+            400
+          );
         }
 
         // Check if caller is already an active manager for this parking
@@ -1063,7 +1077,7 @@ export default {
         );
 
         const reqRow = await env.DB.prepare(
-          "SELECT r.id, r.parking_id, r.person_id, r.status, p.name as parking_name, c.name as city_name, u.name as person_name, u.email as person_email " +
+          "SELECT r.id, r.parking_id, r.person_id, r.status, p.name as parking_name, c.name as city_name, b.building_type, u.name as person_name, u.email as person_email " +
             "FROM manager_requests r " +
             "LEFT JOIN parkings p ON r.parking_id = p.id " +
             "LEFT JOIN buildings b ON p.building_id = b.id " +
@@ -1076,6 +1090,13 @@ export default {
 
         if (!reqRow) {
           return jsonResponse({ error: "Manager request not found" }, 404);
+        }
+
+        if (reqRow.building_type !== "Private") {
+          return jsonResponse(
+            { error: "Cannot approve manager request: target parking belongs to a public building." },
+            400
+          );
         }
 
         // Update request status

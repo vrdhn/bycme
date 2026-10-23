@@ -401,8 +401,8 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                   value={newBldType}
                   onChange={(e) => setNewBldType(e.target.value as BuildingType)}
                 >
-                  <option value="Private">Private (Campus / Office)</option>
-                  <option value="Public">Public (Metro / Transit)</option>
+                  <option value="Private">Private (Residential)</option>
+                  <option value="Public">Public (Campus / Office / Transit)</option>
                 </select>
               </div>
               <button
@@ -467,8 +467,8 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                               onChange={(e) => setEditBldType(e.target.value as BuildingType)}
                               style={{ padding: "0.3rem 0.5rem", fontSize: "0.85rem" }}
                             >
-                              <option value="Private">Private</option>
-                              <option value="Public">Public</option>
+                              <option value="Private">Private (Residential)</option>
+                              <option value="Public">Public (Campus / Office / Transit)</option>
                             </select>
                           </td>
                           <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
@@ -503,7 +503,7 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                                 color: b.buildingType === "Private" ? "#b45309" : "#0369a1",
                               }}
                             >
-                              {b.buildingType}
+                              {b.buildingType === "Private" ? "🏡 Private (Residential)" : "🏢 Public"}
                             </span>
                           </td>
                           <td style={{ textAlign: "right" }}>
@@ -658,8 +658,24 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                         <>
                           <td style={{ fontWeight: 600 }}>{p.name}</td>
                           <td style={{ color: "var(--text-secondary)" }}>
-                            {p.buildingName || "-"}
-                            {p.cityName ? ` (${p.cityName})` : ""}
+                            <div>
+                              <span>{p.buildingName || "-"}</span>
+                              {p.cityName ? <span style={{ fontSize: "0.85rem", opacity: 0.8 }}> ({p.cityName})</span> : null}
+                            </div>
+                            <div style={{ marginTop: "0.2rem" }}>
+                              <span
+                                style={{
+                                  padding: "0.1rem 0.35rem",
+                                  borderRadius: "4px",
+                                  fontSize: "0.7rem",
+                                  fontWeight: 600,
+                                  background: p.buildingType === "Private" ? "#fef3c7" : "#f1f5f9",
+                                  color: p.buildingType === "Private" ? "#b45309" : "#475569",
+                                }}
+                              >
+                                {p.buildingType === "Private" ? "🏡 Private (Residential)" : "🏢 Public"}
+                              </span>
+                            </div>
                           </td>
                           <td>
                             <span style={{ fontWeight: 600, color: "var(--primary-color)" }}>
@@ -667,14 +683,28 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                             </span>
                           </td>
                           <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                            <button
-                              className="btn-text"
-                              style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", marginRight: "0.25rem", color: "var(--primary-color)", fontWeight: 600 }}
-                              onClick={() => setSelectedParkingForInvite(p)}
-                              title="Generate manager invitation link"
-                            >
-                              🔑 Invite
-                            </button>
+                            {p.buildingType === "Private" ? (
+                              <button
+                                className="btn-text"
+                                style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", marginRight: "0.25rem", color: "var(--primary-color)", fontWeight: 600 }}
+                                onClick={() => setSelectedParkingForInvite(p)}
+                                title="Generate manager invitation link"
+                              >
+                                🔑 Invite
+                              </button>
+                            ) : (
+                              <span
+                                style={{
+                                  fontSize: "0.75rem",
+                                  color: "var(--text-muted)",
+                                  marginRight: "0.5rem",
+                                  fontStyle: "italic",
+                                }}
+                                title="Public parkings cannot have a manager"
+                              >
+                                No Manager (Public)
+                              </span>
+                            )}
                             <button
                               className="btn-text"
                               style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem" }}

@@ -78,6 +78,7 @@ export interface Parking {
   createdAt: string;
   buildingName?: string;
   cityName?: string;
+  buildingType?: BuildingType;
 }
 
 export interface CreateParkingRequest {
