@@ -427,6 +427,87 @@
         }
       }
     },
+    "/api/parkings/{id}/manager-invitations": {
+      "post": {
+        "operationId": "Endpoints_createManagerInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerInvitation"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateManagerInvitationRequest"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "Endpoints_listManagerInvitations",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ManagerInvitation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/persons": {
       "get": {
         "operationId": "Endpoints_listPersons",
@@ -554,6 +635,15 @@
           }
         }
       },
+      "CreateManagerInvitationRequest": {
+        "type": "object",
+        "properties": {
+          "durationHours": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "CreateParkingRequest": {
         "type": "object",
         "required": [
@@ -593,6 +683,14 @@
           }
         }
       },
+      "InvitationStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "used",
+          "revoked"
+        ]
+      },
       "LoginRequest": {
         "type": "object",
         "required": [
@@ -620,6 +718,62 @@
           },
           "user": {
             "$ref": "#/components/schemas/Person"
+          }
+        }
+      },
+      "ManagerInvitation": {
+        "type": "object",
+        "required": [
+          "id",
+          "token",
+          "parkingId",
+          "role",
+          "createdBy",
+          "status",
+          "expiresAt",
+          "inviteUrl",
+          "whatsappMessage",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/PersonRole"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InvitationStatus"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "inviteUrl": {
+            "type": "string"
+          },
+          "whatsappMessage": {
+            "type": "string"
+          },
+          "parkingName": {
+            "type": "string"
+          },
+          "cityName": {
+            "type": "string"
+          },
+          "createdByName": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
           }
         }
       },

@@ -51,6 +51,22 @@
 * **Modular Seed**:
   * `seed-002-locations.sql` populating test hubs in Pune (Maharashtra), Bengaluru (Karnataka), and Hyderabad (Telangana).
 
+### `feat004`: Inviting Managers to Parking
+* **Manager Invitation Flow**:
+  * Admin generates invitation to manage a specific parking lot.
+  * Role-scoped endpoints (`/api/parkings/{id}/manager-invitations`) preventing collision with future rider invitations.
+* **Compact Uniform URL Scheme**:
+  * Unpadded base64url-encoded 16-byte UUID tokens (22 alphanumeric characters, e.g. `v7K9Lm3XqP1oZ8wA2bC4dE`).
+  * Route: `https://bycme-staging.pages.dev/#/join/mgr/<token>`.
+* **Configurable Expiry**:
+  * Dropdown duration options (1h, 6h, 12h, 24h default, 3d, 7d).
+  * Automatic API-level filtering of expired invitations (`datetime(expires_at) > datetime('now')`).
+* **WhatsApp Invitation Sharing**:
+  * Pre-formatted WhatsApp text with admin name, parking lot name, city, expiry duration, and link.
+  * Single-click clipboard copy with user feedback toast.
+* **Modular Seed**:
+  * `seed-003-invitations.sql` configuring active sample manager invitation.
+
 ---
 
 ## 2. Database
@@ -118,17 +134,36 @@
 * **Indexes**:
   * `idx_parkings_building_id` on `parkings(building_id)` (`feat003`)
 
+#### Table: `invitations`
+| Column | Type | Constraints | Description | Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | Unique invitation record ID | `feat004` |
+| `token` | `TEXT` | `UNIQUE NOT NULL` | Compact 22-char base64url random UUID | `feat004` |
+| `parking_id` | `TEXT` | `NOT NULL REFERENCES parkings(id) ON DELETE CASCADE` | Target parking stand foreign key | `feat004` |
+| `role` | `TEXT` | `NOT NULL CHECK (role IN ('Manager', 'Rider'))` | Target invitation role | `feat004` |
+| `created_by` | `TEXT` | `NOT NULL REFERENCES persons(id) ON DELETE CASCADE` | Issuer foreign key to `persons.id` | `feat004` |
+| `status` | `TEXT` | `NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'used', 'revoked'))` | Invitation state | `feat004` |
+| `expires_at` | `DATETIME` | `NOT NULL` | Expiry timestamp | `feat004` |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Record creation timestamp | `feat004` |
+
+* **Indexes**:
+  * `idx_invitations_token` on `invitations(token)` (`feat004`)
+  * `idx_invitations_parking_id` on `invitations(parking_id)` (`feat004`)
+  * `idx_invitations_parking_role_status` on `invitations(parking_id, role, status, expires_at)` (`feat004`)
+
 ### Migrations
 | Migration | Description | Feature |
 | :--- | :--- | :--- |
 | `sqlsource/migrations/0001_auth.sql` | Authentication tables, roles, and indexes | `feat002` |
 | `sqlsource/migrations/0002_locations.sql` | Location hierarchy: cities, buildings, parkings | `feat003` |
+| `sqlsource/migrations/0003_invitations.sql` | Invitations table for managers and riders with expiry | `feat004` |
 
 ### Seed Files
 | Seed File | Description | Feature |
 | :--- | :--- | :--- |
 | `sqlsource/seeds/seed-001-admin.sql` | Initial System Administrator (`admin@bycme.in`) | `feat002` |
 | `sqlsource/seeds/seed-002-locations.sql` | Baseline Indian cities, buildings, and parking stands | `feat003` |
+| `sqlsource/seeds/seed-003-invitations.sql` | Active sample parking manager invitation | `feat004` |
 
 ---
 
@@ -153,6 +188,9 @@
 * `Parking`: `{ id: string, buildingId: string, name: string, capacity: int32, createdAt: string, buildingName?: string, cityName?: string }` (`feat003`)
 * `CreateParkingRequest`: `{ buildingId: string, name: string, capacity: int32 }` (`feat003`)
 * `UpdateParkingRequest`: `{ buildingId?: string, name?: string, capacity?: int32 }` (`feat003`)
+* `InvitationStatus`: `"active" | "used" | "revoked"` (`feat004`)
+* `CreateManagerInvitationRequest`: `{ durationHours?: int32 }` (`feat004`)
+* `ManagerInvitation`: `{ id: string, token: string, parkingId: string, role: PersonRole, createdBy: string, status: InvitationStatus, expiresAt: string, inviteUrl: string, whatsappMessage: string, parkingName?: string, cityName?: string, createdByName?: string, createdAt: string }` (`feat004`)
 
 ### Endpoints Table
 
@@ -171,3 +209,5 @@
 | `feat003` | `GET` | `/api/parkings` | List all parking stands with parent details | `Authorization: Bearer <token>` | None | `Parking[]` |
 | `feat003` | `POST` | `/api/parkings` | Create new parking stand | `Authorization: Bearer <token>` (Admin) | `CreateParkingRequest` | `Parking` |
 | `feat003` | `PUT` | `/api/parkings/{id}` | Update parking stand spelling / capacity | `Authorization: Bearer <token>` (Admin) | `UpdateParkingRequest` | `Parking` |
+| `feat004` | `POST` | `/api/parkings/{id}/manager-invitations` | Generate manager invitation link & WhatsApp text with expiry | `Authorization: Bearer <token>` (Admin) | `CreateManagerInvitationRequest` | `ManagerInvitation` |
+| `feat004` | `GET` | `/api/parkings/{id}/manager-invitations` | List unexpired active manager invitations for parking | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |

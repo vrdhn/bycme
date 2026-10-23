@@ -6,6 +6,7 @@ import {
   Parking,
   BuildingType,
 } from "../../../generated/shared";
+import { ManagerInviteModal } from "./ManagerInviteModal";
 
 interface LocationsAdminViewProps {
   apiClient: BycmeClient;
@@ -18,6 +19,7 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
   const [cities, setCities] = useState<City[]>([]);
   const [buildings, setBuildings] = useState<Building[]>([]);
   const [parkings, setParkings] = useState<Parking[]>([]);
+  const [selectedParkingForInvite, setSelectedParkingForInvite] = useState<Parking | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -664,7 +666,15 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                               {p.capacity} docks
                             </span>
                           </td>
-                          <td style={{ textAlign: "right" }}>
+                          <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                            <button
+                              className="btn-text"
+                              style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", marginRight: "0.25rem", color: "var(--primary-color)", fontWeight: 600 }}
+                              onClick={() => setSelectedParkingForInvite(p)}
+                              title="Generate manager invitation link"
+                            >
+                              🔑 Invite
+                            </button>
                             <button
                               className="btn-text"
                               style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem" }}
@@ -683,6 +693,15 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
             )}
           </div>
         </div>
+      )}
+
+      {selectedParkingForInvite && (
+        <ManagerInviteModal
+          apiClient={apiClient}
+          parking={selectedParkingForInvite}
+          token={token}
+          onClose={() => setSelectedParkingForInvite(null)}
+        />
       )}
     </div>
   );

@@ -38,6 +38,65 @@ function bytesToHex(bytes: Uint8Array): string {
     .join("");
 }
 
+function generateCompactToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function formatManagerInvitation(
+  row: {
+    id: string;
+    token: string;
+    parking_id: string;
+    role: string;
+    created_by: string;
+    status: string;
+    expires_at: string;
+    created_at: string;
+    parking_name?: string;
+    city_name?: string;
+    created_by_name?: string;
+  },
+  frontendBase: string = "https://bycme-staging.pages.dev",
+  explicitHours?: number
+) {
+  const inviteUrl = `${frontendBase}/#/join/mgr/${row.token}`;
+  const hours =
+    explicitHours ||
+    Math.max(
+      1,
+      Math.round((new Date(row.expires_at).getTime() - Date.now()) / (3600 * 1000))
+    );
+  const parkingInfo = row.parking_name
+    ? `${row.parking_name}${row.city_name ? ` (${row.city_name})` : ""}`
+    : "this parking lot";
+  const inviter = row.created_by_name || "System Admin";
+
+  const whatsappMessage =
+    `${inviter} is inviting you to manage ${parkingInfo}.\n` +
+    `Click here to create an account and start:\n` +
+    `${inviteUrl}\n\n` +
+    `Note: This link expires in ${hours} hours.`;
+
+  return {
+    id: row.id,
+    token: row.token,
+    parkingId: row.parking_id,
+    role: row.role,
+    createdBy: row.created_by,
+    status: row.status,
+    expiresAt: row.expires_at,
+    inviteUrl,
+    whatsappMessage,
+    parkingName: row.parking_name,
+    cityName: row.city_name,
+    createdByName: row.created_by_name,
+    createdAt: row.created_at,
+  };
+}
+
 async function verifyPassword(
   password: string,
   saltHex: string,
@@ -527,6 +586,110 @@ export default {
           .first();
 
         return jsonResponse(updated);
+      }
+
+      // Parking Manager Invitations
+      if (
+        pathname.startsWith("/api/parkings/") &&
+        pathname.endsWith("/manager-invitations") &&
+        request.method === "POST"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Admin")) {
+          return jsonResponse({ error: "Forbidden: Admin role required" }, 403);
+        }
+
+        const parkingId = decodeURIComponent(
+          pathname.replace("/api/parkings/", "").replace("/manager-invitations", "")
+        );
+        const body = ((await request.json().catch(() => ({}))) || {}) as {
+          durationHours?: number;
+        };
+
+        const parking = await env.DB.prepare(
+          "SELECT p.id, p.name as parking_name, c.name as city_name " +
+            "FROM parkings p LEFT JOIN buildings b ON p.building_id = b.id LEFT JOIN cities c ON b.city_id = c.id " +
+            "WHERE p.id = ?"
+        )
+          .bind(parkingId)
+          .first<{ id: string; parking_name: string; city_name: string }>();
+
+        if (!parking) {
+          return jsonResponse({ error: "Parking not found" }, 404);
+        }
+
+        const durationHours =
+          typeof body.durationHours === "number" && body.durationHours > 0
+            ? body.durationHours
+            : 24;
+        const id = `inv-${crypto.randomUUID().slice(0, 8)}`;
+        const token = generateCompactToken();
+        const expiresAt = new Date(Date.now() + durationHours * 3600 * 1000).toISOString();
+
+        await env.DB.prepare(
+          "INSERT INTO invitations (id, token, parking_id, role, created_by, status, expires_at) " +
+            "VALUES (?, ?, ?, 'Manager', ?, 'active', ?)"
+        )
+          .bind(id, token, parkingId, caller.id, expiresAt)
+          .run();
+
+        const invRow = await env.DB.prepare(
+          "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.expires_at, i.created_at, " +
+            "p.name as parking_name, c.name as city_name, u.name as created_by_name " +
+            "FROM invitations i " +
+            "LEFT JOIN parkings p ON i.parking_id = p.id " +
+            "LEFT JOIN buildings b ON p.building_id = b.id " +
+            "LEFT JOIN cities c ON b.city_id = c.id " +
+            "LEFT JOIN persons u ON i.created_by = u.id " +
+            "WHERE i.id = ?"
+        )
+          .bind(id)
+          .first<any>();
+
+        return jsonResponse(
+          formatManagerInvitation(invRow, "https://bycme-staging.pages.dev", durationHours),
+          201
+        );
+      }
+
+      if (
+        pathname.startsWith("/api/parkings/") &&
+        pathname.endsWith("/manager-invitations") &&
+        request.method === "GET"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Admin")) {
+          return jsonResponse({ error: "Forbidden: Admin role required" }, 403);
+        }
+
+        const parkingId = decodeURIComponent(
+          pathname.replace("/api/parkings/", "").replace("/manager-invitations", "")
+        );
+
+        const res = await env.DB.prepare(
+          "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.expires_at, i.created_at, " +
+            "p.name as parking_name, c.name as city_name, u.name as created_by_name " +
+            "FROM invitations i " +
+            "LEFT JOIN parkings p ON i.parking_id = p.id " +
+            "LEFT JOIN buildings b ON p.building_id = b.id " +
+            "LEFT JOIN cities c ON b.city_id = c.id " +
+            "LEFT JOIN persons u ON i.created_by = u.id " +
+            "WHERE i.parking_id = ? AND i.role = 'Manager' AND i.status = 'active' AND datetime(i.expires_at) > datetime('now') " +
+            "ORDER BY i.created_at DESC"
+        )
+          .bind(parkingId)
+          .all<any>();
+
+        const formatted = (res.results || []).map((row) =>
+          formatManagerInvitation(row, "https://bycme-staging.pages.dev")
+        );
+        return jsonResponse(formatted);
       }
 
       return jsonResponse({ error: "Not Found" }, 404);

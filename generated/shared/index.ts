@@ -92,6 +92,28 @@ export interface UpdateParkingRequest {
   capacity?: number;
 }
 
+export type InvitationStatus = "active" | "used" | "revoked";
+
+export interface CreateManagerInvitationRequest {
+  durationHours?: number;
+}
+
+export interface ManagerInvitation {
+  id: string;
+  token: string;
+  parkingId: string;
+  role: PersonRole;
+  createdBy: string;
+  status: InvitationStatus;
+  expiresAt: string;
+  inviteUrl: string;
+  whatsappMessage: string;
+  parkingName?: string;
+  cityName?: string;
+  createdByName?: string;
+  createdAt: string;
+}
+
 export class BycmeClient {
   private baseUrl: string;
 
@@ -224,5 +246,31 @@ export class BycmeClient {
       headers,
       body: JSON.stringify(body),
     });
+  }
+
+  createManagerInvitation(
+    parkingId: string,
+    body: CreateManagerInvitationRequest,
+    token?: string
+  ): Promise<ManagerInvitation> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<ManagerInvitation>(
+      `/api/parkings/${encodeURIComponent(parkingId)}/manager-invitations`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      }
+    );
+  }
+
+  listManagerInvitations(parkingId: string, token?: string): Promise<ManagerInvitation[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<ManagerInvitation[]>(
+      `/api/parkings/${encodeURIComponent(parkingId)}/manager-invitations`,
+      { headers }
+    );
   }
 }

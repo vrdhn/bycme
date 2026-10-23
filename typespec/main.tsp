@@ -106,6 +106,32 @@ model UpdateParkingRequest {
   capacity?: int32;
 }
 
+enum InvitationStatus {
+  active,
+  used,
+  revoked,
+}
+
+model CreateManagerInvitationRequest {
+  durationHours?: int32;
+}
+
+model ManagerInvitation {
+  id: string;
+  token: string;
+  parkingId: string;
+  role: PersonRole;
+  createdBy: string;
+  status: InvitationStatus;
+  expiresAt: string;
+  inviteUrl: string;
+  whatsappMessage: string;
+  parkingName?: string;
+  cityName?: string;
+  createdByName?: string;
+  createdAt: string;
+}
+
 @route("/api")
 namespace Endpoints {
   @get
@@ -159,4 +185,19 @@ namespace Endpoints {
   @put
   @route("/parkings/{id}")
   op updateParking(@path id: string, @body body: UpdateParkingRequest, @header authorization?: string): Parking;
+
+  @post
+  @route("/parkings/{id}/manager-invitations")
+  op createManagerInvitation(
+    @path id: string,
+    @body body: CreateManagerInvitationRequest,
+    @header authorization?: string
+  ): ManagerInvitation;
+
+  @get
+  @route("/parkings/{id}/manager-invitations")
+  op listManagerInvitations(
+    @path id: string,
+    @header authorization?: string
+  ): ManagerInvitation[];
 }
