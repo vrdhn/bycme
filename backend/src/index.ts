@@ -162,6 +162,8 @@ function formatCycleCheckout(row: {
   lock_code?: string;
   parking_name?: string;
   city_name?: string;
+  return_condition?: string | null;
+  return_notes?: string | null;
 }) {
   return {
     id: row.id,
@@ -178,6 +180,8 @@ function formatCycleCheckout(row: {
     lockCode: row.lock_code,
     parkingName: row.parking_name,
     cityName: row.city_name,
+    returnCondition: row.return_condition || undefined,
+    returnNotes: row.return_notes || undefined,
   };
 }
 
@@ -2246,6 +2250,7 @@ export default {
 
         const row = await env.DB.prepare(
           "SELECT co.id, co.cycle_id, co.person_id, co.parking_id, co.checked_out_at, co.returned_at, co.status, " +
+            "co.return_condition, co.return_notes, " +
             "c.public_cycle_id, c.company, c.model, c.colour, c.lock_code, " +
             "p.name as parking_name, ci.name as city_name " +
             "FROM cycle_checkouts co " +
@@ -2300,6 +2305,7 @@ export default {
 
         const activeCoRow = await env.DB.prepare(
           "SELECT co.id, co.cycle_id, co.person_id, co.parking_id, co.checked_out_at, co.returned_at, co.status, " +
+            "co.return_condition, co.return_notes, " +
             "c.public_cycle_id, c.company, c.model, c.colour, c.lock_code, " +
             "p.name as parking_name, ci.name as city_name " +
             "FROM cycle_checkouts co " +
@@ -2454,6 +2460,7 @@ export default {
 
         const coRow = await env.DB.prepare(
           "SELECT co.id, co.cycle_id, co.person_id, co.parking_id, co.checked_out_at, co.returned_at, co.status, " +
+            "co.return_condition, co.return_notes, " +
             "c.public_cycle_id, c.company, c.model, c.colour, c.lock_code, " +
             "p.name as parking_name, ci.name as city_name " +
             "FROM cycle_checkouts co " +
@@ -2502,14 +2509,39 @@ export default {
           return jsonResponse({ error: "This cycle checkout is already marked returned" }, 400);
         }
 
+        let condition = "Working";
+        let notes: string | null = null;
+        try {
+          const body = await request.json<any>();
+          if (body) {
+            if (body.condition && ["Working", "Puncture", "Broken"].includes(body.condition)) {
+              condition = body.condition;
+            }
+            if (typeof body.notes === "string" && body.notes.trim()) {
+              notes = body.notes.trim();
+            }
+          }
+        } catch {
+          // Body is optional
+        }
+
         await env.DB.prepare(
-          "UPDATE cycle_checkouts SET status = 'returned', returned_at = datetime('now') WHERE id = ?"
+          "UPDATE cycle_checkouts SET status = 'returned', returned_at = datetime('now'), return_condition = ?, return_notes = ? WHERE id = ?"
         )
-          .bind(checkoutId)
+          .bind(condition, notes, checkoutId)
           .run();
+
+        if (condition !== "Working") {
+          await env.DB.prepare(
+            "UPDATE cycles SET status = ?, updated_at = datetime('now') WHERE id = ?"
+          )
+            .bind(condition, checkout.cycle_id)
+            .run();
+        }
 
         const updated = await env.DB.prepare(
           "SELECT co.id, co.cycle_id, co.person_id, co.parking_id, co.checked_out_at, co.returned_at, co.status, " +
+            "co.return_condition, co.return_notes, " +
             "c.public_cycle_id, c.company, c.model, c.colour, c.lock_code, " +
             "p.name as parking_name, ci.name as city_name " +
             "FROM cycle_checkouts co " +

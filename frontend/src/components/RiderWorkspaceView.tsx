@@ -4,7 +4,9 @@ import {
   Parking,
   Cycle,
   CycleCheckout,
+  CycleStatus,
 } from "../../../generated/shared";
+import { ReturnCycleModal } from "./ReturnCycleModal";
 
 interface RiderWorkspaceViewProps {
   apiClient: BycmeClient;
@@ -19,6 +21,7 @@ export function RiderWorkspaceView({ apiClient, token }: RiderWorkspaceViewProps
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -54,13 +57,19 @@ export function RiderWorkspaceView({ apiClient, token }: RiderWorkspaceViewProps
     }
   };
 
-  const handleReturn = async (checkoutId: string) => {
+  const handleReturn = async (condition: CycleStatus, notes?: string) => {
+    if (!activeCheckout) return;
     setActionLoading(true);
     setError(null);
     try {
-      await apiClient.returnCheckout(checkoutId, token);
+      await apiClient.returnCheckout(activeCheckout.id, { condition, notes }, token);
+      setShowReturnModal(false);
       setActiveCheckout(null);
-      setSuccessMsg("Cycle successfully returned to stand.");
+      if (condition !== "Working") {
+        setSuccessMsg(`Cycle returned and reported as '${condition}'. Thank you for alerting maintenance!`);
+      } else {
+        setSuccessMsg("Cycle successfully returned to stand.");
+      }
       loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Return failed");
@@ -223,9 +232,9 @@ export function RiderWorkspaceView({ apiClient, token }: RiderWorkspaceViewProps
               className="btn-primary"
               style={{ background: "#16a34a", borderColor: "#16a34a" }}
               disabled={actionLoading}
-              onClick={() => handleReturn(activeCheckout.id)}
+              onClick={() => setShowReturnModal(true)}
             >
-              {actionLoading ? "Returning..." : "Return Cycle to Stand ➔"}
+              Return Cycle to Stand ➔
             </button>
           </div>
         </div>
@@ -343,7 +352,7 @@ export function RiderWorkspaceView({ apiClient, token }: RiderWorkspaceViewProps
                             className="btn-secondary"
                             style={{ fontSize: "0.8rem", padding: "0.3rem 0.75rem" }}
                             disabled={actionLoading}
-                            onClick={() => handleReturn(activeCheckout.id)}
+                            onClick={() => setShowReturnModal(true)}
                           >
                             Return ➔
                           </button>
@@ -374,6 +383,18 @@ export function RiderWorkspaceView({ apiClient, token }: RiderWorkspaceViewProps
           </div>
         )}
       </div>
+
+      {showReturnModal && activeCheckout && (
+        <ReturnCycleModal
+          cycleIdentifier={activeCheckout.publicCycleId}
+          brand={activeCheckout.brand}
+          cycleModel={activeCheckout.cycleModel}
+          loading={actionLoading}
+          error={error}
+          onConfirm={handleReturn}
+          onClose={() => setShowReturnModal(false)}
+        />
+      )}
     </div>
   );
 }

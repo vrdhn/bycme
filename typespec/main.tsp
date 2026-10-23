@@ -280,6 +280,13 @@ model CycleCheckout {
   lockCode?: string;
   parkingName?: string;
   cityName?: string;
+  returnCondition?: CycleStatus;
+  returnNotes?: string;
+}
+
+model ReturnCycleRequest {
+  condition?: CycleStatus;
+  notes?: string;
 }
 
 model ActiveCheckoutResponse {
@@ -539,6 +546,7 @@ namespace Endpoints {
   @route("/checkouts/{id}/return")
   op returnCheckout(
     @path id: string,
+    @body body?: ReturnCycleRequest,
     @header authorization?: string
   ): CycleCheckout;
 }

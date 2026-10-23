@@ -4,7 +4,9 @@ import {
   Person,
   Cycle,
   CycleCheckout,
+  CycleStatus,
 } from "../../../generated/shared";
+import { ReturnCycleModal } from "./ReturnCycleModal";
 
 interface CycleQrPortalProps {
   apiClient: BycmeClient;
@@ -42,6 +44,7 @@ export function CycleQrPortal({
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
 
   // Load cycle details and caller context
   const loadCycleData = useCallback(async () => {
@@ -140,15 +143,20 @@ export function CycleQrPortal({
   };
 
   // Return handler
-  const handleReturn = async () => {
+  const handleReturn = async (condition: CycleStatus, notes?: string) => {
     const coId = activeCheckout?.id;
     if (!coId || !authToken) return;
     setActionLoading(true);
     setActionError(null);
     try {
-      await apiClient.returnCheckout(coId, authToken);
+      await apiClient.returnCheckout(coId, { condition, notes }, authToken);
+      setShowReturnModal(false);
       setActiveCheckout(null);
-      setSuccessMsg("Cycle successfully returned to stand.");
+      if (condition !== "Working") {
+        setSuccessMsg(`Cycle returned and reported as '${condition}'. Maintenance alerted.`);
+      } else {
+        setSuccessMsg("Cycle successfully returned to stand.");
+      }
       loadCycleData();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to return cycle");
@@ -455,9 +463,9 @@ export function CycleQrPortal({
                   className="btn-primary"
                   style={{ background: "#16a34a", borderColor: "#16a34a" }}
                   disabled={actionLoading}
-                  onClick={handleReturn}
+                  onClick={() => setShowReturnModal(true)}
                 >
-                  {actionLoading ? "Returning..." : "Return Cycle to Stand ➔"}
+                  Return Cycle to Stand ➔
                 </button>
               </div>
             ) : hasOtherActiveCheckout ? (
@@ -582,6 +590,18 @@ export function CycleQrPortal({
           </div>
         )}
       </div>
+
+      {showReturnModal && (
+        <ReturnCycleModal
+          cycleIdentifier={cycle.publicCycleId}
+          brand={cycle.brand}
+          cycleModel={cycle.cycleModel}
+          loading={actionLoading}
+          error={actionError}
+          onConfirm={handleReturn}
+          onClose={() => setShowReturnModal(false)}
+        />
+      )}
     </div>
   );
 }

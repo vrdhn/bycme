@@ -197,6 +197,20 @@
     5. Caller has no other active checkout.
   * Unlocks cycle via `POST /api/cycles/{id}/checkout`, records checkout session, and displays combination code.
 
+### `feat010`: Rider Cycle Damage Reporting on Return
+* **Damage & Condition Reporting**:
+  * Return action on Rider Workspace and Scan-to-Ride QR Portal prompts user with condition dialog:
+    * `Working` ("✓ Working - In good condition") [default]
+    * `Puncture` ("⚠️ Puncture - Flat tyre")
+    * `Broken` ("❌ Broken - Mechanical issue / chain / brakes")
+  * Optional problem notes textarea for describing mechanical failure.
+* **Automatic Out-of-Service Isolation**:
+  * Returning with condition `Puncture` or `Broken` automatically updates `cycles.status` to that condition.
+  * Cycle is immediately taken out of service, preventing checkout by other resident riders.
+  * Manager fleet console displays damage status pill and allows manager to repair and reset cycle to `Working`.
+* **Checkout Session Audit Log**:
+  * `cycle_checkouts` table updated with `return_condition` and `return_notes`.
+
 ---
 
 ## 2. Database
@@ -373,6 +387,8 @@
 | `checked_out_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Checkout timestamp | `feat009` |
 | `returned_at` | `DATETIME` | | Return timestamp | `feat009` |
 | `status` | `TEXT` | `NOT NULL CHECK (status IN ('active', 'returned')) DEFAULT 'active'` | Session state | `feat009` |
+| `return_condition` | `TEXT` | `CHECK (return_condition IN ('Working', 'Puncture', 'Broken')) DEFAULT 'Working'` | Condition upon return | `feat010` |
+| `return_notes` | `TEXT` | | Optional damage or issue description | `feat010` |
 
 * **Indexes**:
   * `idx_cycle_checkouts_active_cycle` on `cycle_checkouts(cycle_id) WHERE status = 'active'` (`feat009`)
@@ -391,6 +407,7 @@
 | `sqlsource/migrations/0006_cycles.sql` | Cycles table for bicycle inventory management | `feat006` |
 | `sqlsource/migrations/0007_riders.sql` | Single-shed parking riders roster and transfer requests | `feat008` |
 | `sqlsource/migrations/0008_checkouts.sql` | Cycle checkout sessions enforcing 1 active cycle per rider | `feat009` |
+| `sqlsource/migrations/0009_damage_reporting.sql` | Cycle checkout damage and condition reporting on return | `feat010` |
 
 ### Seed Files
 | Seed File | Description | Feature |
@@ -443,7 +460,8 @@
 * `CreateCycleRequest`: `{ publicCycleId?: string, brand: string, cycleModel: string, colour: string, status?: CycleStatus, lockCode: string, qrCode?: string }` (`feat006, fix006`)
 * `UpdateCycleRequest`: `{ brand?: string, cycleModel?: string, colour?: string, status?: CycleStatus, lockCode?: string, qrCode?: string, parkingId?: string }` (`feat006`)
 * `CheckoutStatus`: `"active" | "returned"` (`feat009`)
-* `CycleCheckout`: `{ id: string, cycleId: string, personId: string, parkingId: string, checkedOutAt: string, returnedAt?: string, status: CheckoutStatus, publicCycleId?: string, brand?: string, cycleModel?: string, colour?: string, lockCode?: string, parkingName?: string, cityName?: string }` (`feat009`)
+* `CycleCheckout`: `{ id: string, cycleId: string, personId: string, parkingId: string, checkedOutAt: string, returnedAt?: string, status: CheckoutStatus, publicCycleId?: string, brand?: string, cycleModel?: string, colour?: string, lockCode?: string, parkingName?: string, cityName?: string, returnCondition?: CycleStatus, returnNotes?: string }` (`feat009, feat010`)
+* `ReturnCycleRequest`: `{ condition?: CycleStatus, notes?: string }` (`feat010`)
 * `ActiveCheckoutResponse`: `{ activeCheckout?: CycleCheckout }` (`feat009`)
 * `HomeParkingResponse`: `{ parking: Parking, cycles: Cycle[], activeCheckout?: CycleCheckout }` (`feat009`)
 
@@ -490,7 +508,7 @@
 | `feat009` | `GET` | `/api/me/active-checkout` | Return caller's current active cycle checkout session | `Authorization: Bearer <token>` | None | `ActiveCheckoutResponse` |
 | `feat009` | `GET` | `/api/me/home-parking` | Return rider's assigned home parking stand and stationed cycles fleet | `Authorization: Bearer <token>` (Rider) | None | `HomeParkingResponse` |
 | `feat009` | `POST` | `/api/cycles/{id}/checkout` | Checkout cycle at home stand (validates 1 cycle limit, condition, home stand; reveals lock code) | `Authorization: Bearer <token>` (Rider) | None | `CycleCheckout` |
-| `feat009` | `POST` | `/api/checkouts/{id}/return` | Check-in / return cycle back to stand | `Authorization: Bearer <token>` | None | `CycleCheckout` |
+| `feat009, feat010` | `POST` | `/api/checkouts/{id}/return` | Check-in / return cycle back to stand with damage / condition report; marks cycle out of service if damaged | `Authorization: Bearer <token>` | `ReturnCycleRequest` | `CycleCheckout` |
 
 ---
 

@@ -251,6 +251,13 @@ export interface CycleCheckout {
   lockCode?: string;
   parkingName?: string;
   cityName?: string;
+  returnCondition?: CycleStatus;
+  returnNotes?: string;
+}
+
+export interface ReturnCycleRequest {
+  condition?: CycleStatus;
+  notes?: string;
 }
 
 export interface ActiveCheckoutResponse {
@@ -679,12 +686,13 @@ export class BycmeClient {
     });
   }
 
-  returnCheckout(checkoutId: string, token?: string): Promise<CycleCheckout> {
+  returnCheckout(checkoutId: string, body?: ReturnCycleRequest, token?: string): Promise<CycleCheckout> {
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
     return this.request<CycleCheckout>(`/api/checkouts/${encodeURIComponent(checkoutId)}/return`, {
       method: "POST",
       headers,
+      body: body ? JSON.stringify(body) : undefined,
     });
   }
 }

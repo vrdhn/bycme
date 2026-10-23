@@ -414,6 +414,16 @@
               }
             }
           }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnCycleRequest"
+              }
+            }
+          }
         }
       }
     },
@@ -1745,6 +1755,12 @@
           },
           "cityName": {
             "type": "string"
+          },
+          "returnCondition": {
+            "$ref": "#/components/schemas/CycleStatus"
+          },
+          "returnNotes": {
+            "type": "string"
           }
         }
       },
@@ -2212,6 +2228,17 @@
           },
           "parkingRider": {
             "$ref": "#/components/schemas/ParkingRider"
+          }
+        }
+      },
+      "ReturnCycleRequest": {
+        "type": "object",
+        "properties": {
+          "condition": {
+            "$ref": "#/components/schemas/CycleStatus"
+          },
+          "notes": {
+            "type": "string"
           }
         }
       },
