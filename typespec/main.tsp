@@ -249,13 +249,47 @@ model Cycle {
   cycleModel: string;
   colour: string;
   status: CycleStatus;
-  lockCode: string;
+  lockCode?: string;
   qrCode: string;
   qrUrl: string;
   createdAt: string;
   updatedAt: string;
   parkingName?: string;
   cityName?: string;
+  isAvailable?: boolean;
+  isCheckedOutByMe?: boolean;
+}
+
+enum CheckoutStatus {
+  Active: "active",
+  Returned: "returned",
+}
+
+model CycleCheckout {
+  id: string;
+  cycleId: string;
+  personId: string;
+  parkingId: string;
+  checkedOutAt: string;
+  returnedAt?: string;
+  status: CheckoutStatus;
+  publicCycleId?: string;
+  brand?: string;
+  cycleModel?: string;
+  colour?: string;
+  lockCode?: string;
+  parkingName?: string;
+  cityName?: string;
+}
+
+model ActiveCheckoutResponse {
+  activeCheckout?: CycleCheckout;
+}
+
+model HomeParkingResponse {
+  parking: Parking;
+  cycles: Cycle[];
+  activeCheckout?: CycleCheckout;
 }
 
 model CreateCycleRequest {
@@ -485,4 +519,26 @@ namespace Endpoints {
     @path identifier: string,
     @header authorization?: string
   ): Cycle;
+
+  @get
+  @route("/me/active-checkout")
+  op getMyActiveCheckout(@header authorization?: string): ActiveCheckoutResponse;
+
+  @get
+  @route("/me/home-parking")
+  op getMyHomeParking(@header authorization?: string): HomeParkingResponse;
+
+  @post
+  @route("/cycles/{id}/checkout")
+  op checkoutCycle(
+    @path id: string,
+    @header authorization?: string
+  ): CycleCheckout;
+
+  @post
+  @route("/checkouts/{id}/return")
+  op returnCheckout(
+    @path id: string,
+    @header authorization?: string
+  ): CycleCheckout;
 }

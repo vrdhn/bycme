@@ -115,14 +115,17 @@ function formatCycle(
     model: string;
     colour: string;
     status: string;
-    lock_code: string;
+    lock_code?: string;
     qr_code: string;
     created_at: string;
     updated_at: string;
     parking_name?: string;
     city_name?: string;
   },
-  frontendBase: string = "https://bycme-staging.pages.dev"
+  frontendBase: string = "https://bycme-staging.pages.dev",
+  includeLockCode: boolean = true,
+  isAvailable?: boolean,
+  isCheckedOutByMe?: boolean
 ) {
   return {
     id: row.id,
@@ -132,11 +135,47 @@ function formatCycle(
     cycleModel: row.model,
     colour: row.colour,
     status: row.status,
-    lockCode: row.lock_code,
+    lockCode: includeLockCode ? row.lock_code : undefined,
     qrCode: row.qr_code,
     qrUrl: `${frontendBase}/#/cycle/${row.qr_code}`,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    parkingName: row.parking_name,
+    cityName: row.city_name,
+    isAvailable: isAvailable ?? (row.status === "Working"),
+    isCheckedOutByMe: isCheckedOutByMe ?? false,
+  };
+}
+
+function formatCycleCheckout(row: {
+  id: string;
+  cycle_id: string;
+  person_id: string;
+  parking_id: string;
+  checked_out_at: string;
+  returned_at?: string | null;
+  status: string;
+  public_cycle_id?: string;
+  company?: string;
+  model?: string;
+  colour?: string;
+  lock_code?: string;
+  parking_name?: string;
+  city_name?: string;
+}) {
+  return {
+    id: row.id,
+    cycleId: row.cycle_id,
+    personId: row.person_id,
+    parkingId: row.parking_id,
+    checkedOutAt: row.checked_out_at,
+    returnedAt: row.returned_at || undefined,
+    status: row.status,
+    publicCycleId: row.public_cycle_id,
+    brand: row.company,
+    cycleModel: row.model,
+    colour: row.colour,
+    lockCode: row.lock_code,
     parkingName: row.parking_name,
     cityName: row.city_name,
   };
@@ -2146,19 +2185,18 @@ export default {
       // Lookup cycle by publicCycleId or qr_code
       if (pathname.startsWith("/api/cycles/lookup/") && request.method === "GET") {
         const caller = await authenticateRequest(request, env);
-        if (!caller) {
-          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
-        }
-
         const identifier = decodeURIComponent(pathname.replace("/api/cycles/lookup/", ""));
+
         const row = await env.DB.prepare(
           "SELECT c.id, c.public_cycle_id, c.parking_id, c.company, c.model, c.colour, c.status, " +
             "c.lock_code, c.qr_code, c.created_at, c.updated_at, " +
-            "p.name as parking_name, ci.name as city_name " +
+            "p.name as parking_name, ci.name as city_name, " +
+            "co.id as active_co_id, co.person_id as active_rider_id " +
             "FROM cycles c " +
             "LEFT JOIN parkings p ON c.parking_id = p.id " +
             "LEFT JOIN buildings b ON p.building_id = b.id " +
             "LEFT JOIN cities ci ON b.city_id = ci.id " +
+            "LEFT JOIN cycle_checkouts co ON c.id = co.cycle_id AND co.status = 'active' " +
             "WHERE LOWER(c.public_cycle_id) = LOWER(?) OR c.qr_code = ?"
         )
           .bind(identifier, identifier)
@@ -2168,7 +2206,323 @@ export default {
           return jsonResponse({ error: "Cycle not found" }, 404);
         }
 
-        return jsonResponse(formatCycle(row, "https://bycme-staging.pages.dev"));
+        let canViewLockCode = false;
+        let isCheckedOutByMe = false;
+        if (caller) {
+          if (row.active_rider_id === caller.id) {
+            canViewLockCode = true;
+            isCheckedOutByMe = true;
+          } else if (caller.roles.includes("Admin")) {
+            canViewLockCode = true;
+          } else if (caller.roles.includes("Manager")) {
+            const isMgr = await env.DB.prepare(
+              "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+            )
+              .bind(row.parking_id, caller.id)
+              .first();
+            if (isMgr) canViewLockCode = true;
+          }
+        }
+
+        const isAvailable = !row.active_co_id && row.status === "Working";
+
+        return jsonResponse(
+          formatCycle(
+            row,
+            "https://bycme-staging.pages.dev",
+            canViewLockCode,
+            isAvailable,
+            isCheckedOutByMe
+          )
+        );
+      }
+
+      // Rider: Get caller's active cycle checkout
+      if (pathname === "/api/me/active-checkout" && request.method === "GET") {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+
+        const row = await env.DB.prepare(
+          "SELECT co.id, co.cycle_id, co.person_id, co.parking_id, co.checked_out_at, co.returned_at, co.status, " +
+            "c.public_cycle_id, c.company, c.model, c.colour, c.lock_code, " +
+            "p.name as parking_name, ci.name as city_name " +
+            "FROM cycle_checkouts co " +
+            "JOIN cycles c ON co.cycle_id = c.id " +
+            "JOIN parkings p ON co.parking_id = p.id " +
+            "JOIN buildings b ON p.building_id = b.id " +
+            "JOIN cities ci ON b.city_id = ci.id " +
+            "WHERE co.person_id = ? AND co.status = 'active'"
+        )
+          .bind(caller.id)
+          .first<any>();
+
+        return jsonResponse({
+          activeCheckout: row ? formatCycleCheckout(row) : null,
+        });
+      }
+
+      // Rider: Get home parking stand details and fleet
+      if (pathname === "/api/me/home-parking" && request.method === "GET") {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+
+        const riderAssignment = await env.DB.prepare(
+          "SELECT parking_id FROM parking_riders WHERE person_id = ?"
+        )
+          .bind(caller.id)
+          .first<{ parking_id: string }>();
+
+        if (!riderAssignment) {
+          return jsonResponse(
+            { error: "You are not assigned to any bicycle parking stand. Please join a parking stand via invitation." },
+            404
+          );
+        }
+
+        const parking = await env.DB.prepare(
+          "SELECT p.id, p.name, p.capacity, p.building_id as buildingId, p.created_at as createdAt, " +
+            "b.name as buildingName, ci.name as cityName, b.building_type as buildingType " +
+            "FROM parkings p " +
+            "JOIN buildings b ON p.building_id = b.id " +
+            "JOIN cities ci ON b.city_id = ci.id " +
+            "WHERE p.id = ?"
+        )
+          .bind(riderAssignment.parking_id)
+          .first<any>();
+
+        if (!parking) {
+          return jsonResponse({ error: "Parking stand not found" }, 404);
+        }
+
+        const activeCoRow = await env.DB.prepare(
+          "SELECT co.id, co.cycle_id, co.person_id, co.parking_id, co.checked_out_at, co.returned_at, co.status, " +
+            "c.public_cycle_id, c.company, c.model, c.colour, c.lock_code, " +
+            "p.name as parking_name, ci.name as city_name " +
+            "FROM cycle_checkouts co " +
+            "JOIN cycles c ON co.cycle_id = c.id " +
+            "JOIN parkings p ON co.parking_id = p.id " +
+            "JOIN buildings b ON p.building_id = b.id " +
+            "JOIN cities ci ON b.city_id = ci.id " +
+            "WHERE co.person_id = ? AND co.status = 'active'"
+        )
+          .bind(caller.id)
+          .first<any>();
+
+        const activeCheckout = activeCoRow ? formatCycleCheckout(activeCoRow) : undefined;
+
+        const cyclesRes = await env.DB.prepare(
+          "SELECT c.id, c.public_cycle_id, c.parking_id, c.company, c.model, c.colour, c.status, " +
+            "c.lock_code, c.qr_code, c.created_at, c.updated_at, " +
+            "p.name as parking_name, ci.name as city_name, " +
+            "co.id as active_co_id, co.person_id as active_rider_id " +
+            "FROM cycles c " +
+            "JOIN parkings p ON c.parking_id = p.id " +
+            "JOIN buildings b ON p.building_id = b.id " +
+            "JOIN cities ci ON b.city_id = ci.id " +
+            "LEFT JOIN cycle_checkouts co ON c.id = co.cycle_id AND co.status = 'active' " +
+            "WHERE c.parking_id = ? " +
+            "ORDER BY c.public_cycle_id ASC"
+        )
+          .bind(riderAssignment.parking_id)
+          .all<any>();
+
+        const cycles = (cyclesRes.results || []).map((c) => {
+          const isCheckedOutByMe = c.active_rider_id === caller.id;
+          const isAvailable = !c.active_co_id && c.status === "Working";
+          return formatCycle(
+            c,
+            "https://bycme-staging.pages.dev",
+            isCheckedOutByMe,
+            isAvailable,
+            isCheckedOutByMe
+          );
+        });
+
+        return jsonResponse({
+          parking,
+          cycles,
+          activeCheckout,
+        });
+      }
+
+      // Rider: Checkout cycle
+      if (
+        pathname.startsWith("/api/cycles/") &&
+        pathname.endsWith("/checkout") &&
+        request.method === "POST"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Rider")) {
+          return jsonResponse({ error: "Forbidden: Rider role required" }, 403);
+        }
+
+        const cycleId = decodeURIComponent(
+          pathname.replace("/api/cycles/", "").replace("/checkout", "")
+        );
+
+        // Verification 1: Rider assigned home parking stand
+        const riderAssignment = await env.DB.prepare(
+          "SELECT parking_id FROM parking_riders WHERE person_id = ?"
+        )
+          .bind(caller.id)
+          .first<{ parking_id: string }>();
+
+        if (!riderAssignment) {
+          return jsonResponse(
+            { error: "You are not assigned to any parking stand. Please join a parking stand via invitation." },
+            403
+          );
+        }
+
+        // Verification 2: Maximum 1 active checkout per rider
+        const existingCheckout = await env.DB.prepare(
+          "SELECT id FROM cycle_checkouts WHERE person_id = ? AND status = 'active'"
+        )
+          .bind(caller.id)
+          .first();
+
+        if (existingCheckout) {
+          return jsonResponse(
+            { error: "You already have an active cycle checkout. Return your active cycle before checking out another." },
+            400
+          );
+        }
+
+        // Verification 3: Cycle exists
+        const cycle = await env.DB.prepare(
+          "SELECT c.id, c.parking_id, c.company, c.model, c.colour, c.status, c.lock_code, c.public_cycle_id, " +
+            "p.name as parking_name, ci.name as city_name " +
+            "FROM cycles c " +
+            "JOIN parkings p ON c.parking_id = p.id " +
+            "JOIN buildings b ON p.building_id = b.id " +
+            "JOIN cities ci ON b.city_id = ci.id " +
+            "WHERE c.id = ?"
+        )
+          .bind(cycleId)
+          .first<any>();
+
+        if (!cycle) {
+          return jsonResponse({ error: "Cycle not found" }, 404);
+        }
+
+        // Verification 4: Belongs to rider's home stand
+        if (cycle.parking_id !== riderAssignment.parking_id) {
+          return jsonResponse(
+            {
+              error: `Cycle belongs to ${cycle.parking_name}${cycle.city_name ? ` (${cycle.city_name})` : ""}. You can only checkout cycles at your registered home stand.`,
+            },
+            403
+          );
+        }
+
+        // Verification 5: Cycle condition is Working
+        if (cycle.status !== "Working") {
+          return jsonResponse(
+            { error: `This cycle is currently marked as '${cycle.status}' and is unavailable for checkout.` },
+            400
+          );
+        }
+
+        // Verification 6: Not currently checked out
+        const activeCycleCheckout = await env.DB.prepare(
+          "SELECT id FROM cycle_checkouts WHERE cycle_id = ? AND status = 'active'"
+        )
+          .bind(cycleId)
+          .first();
+
+        if (activeCycleCheckout) {
+          return jsonResponse(
+            { error: "This cycle is currently in use by another rider." },
+            409
+          );
+        }
+
+        // Create checkout session
+        const checkoutId = `co-${crypto.randomUUID().slice(0, 8)}`;
+        await env.DB.prepare(
+          "INSERT INTO cycle_checkouts (id, cycle_id, person_id, parking_id, status) VALUES (?, ?, ?, ?, 'active')"
+        )
+          .bind(checkoutId, cycleId, caller.id, cycle.parking_id)
+          .run();
+
+        const coRow = await env.DB.prepare(
+          "SELECT co.id, co.cycle_id, co.person_id, co.parking_id, co.checked_out_at, co.returned_at, co.status, " +
+            "c.public_cycle_id, c.company, c.model, c.colour, c.lock_code, " +
+            "p.name as parking_name, ci.name as city_name " +
+            "FROM cycle_checkouts co " +
+            "JOIN cycles c ON co.cycle_id = c.id " +
+            "JOIN parkings p ON co.parking_id = p.id " +
+            "JOIN buildings b ON p.building_id = b.id " +
+            "JOIN cities ci ON b.city_id = ci.id " +
+            "WHERE co.id = ?"
+        )
+          .bind(checkoutId)
+          .first<any>();
+
+        return jsonResponse(formatCycleCheckout(coRow), 201);
+      }
+
+      // Rider / Manager: Return checked-out cycle
+      if (
+        pathname.startsWith("/api/checkouts/") &&
+        pathname.endsWith("/return") &&
+        request.method === "POST"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+
+        const checkoutId = decodeURIComponent(
+          pathname.replace("/api/checkouts/", "").replace("/return", "")
+        );
+
+        const checkout = await env.DB.prepare(
+          "SELECT id, cycle_id, person_id, parking_id, status FROM cycle_checkouts WHERE id = ?"
+        )
+          .bind(checkoutId)
+          .first<{ id: string; cycle_id: string; person_id: string; parking_id: string; status: string }>();
+
+        if (!checkout) {
+          return jsonResponse({ error: "Checkout session not found" }, 404);
+        }
+
+        if (checkout.person_id !== caller.id && !caller.roles.includes("Admin") && !caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: You do not own this checkout session" }, 403);
+        }
+
+        if (checkout.status !== "active") {
+          return jsonResponse({ error: "This cycle checkout is already marked returned" }, 400);
+        }
+
+        await env.DB.prepare(
+          "UPDATE cycle_checkouts SET status = 'returned', returned_at = datetime('now') WHERE id = ?"
+        )
+          .bind(checkoutId)
+          .run();
+
+        const updated = await env.DB.prepare(
+          "SELECT co.id, co.cycle_id, co.person_id, co.parking_id, co.checked_out_at, co.returned_at, co.status, " +
+            "c.public_cycle_id, c.company, c.model, c.colour, c.lock_code, " +
+            "p.name as parking_name, ci.name as city_name " +
+            "FROM cycle_checkouts co " +
+            "JOIN cycles c ON co.cycle_id = c.id " +
+            "JOIN parkings p ON co.parking_id = p.id " +
+            "JOIN buildings b ON p.building_id = b.id " +
+            "JOIN cities ci ON b.city_id = ci.id " +
+            "WHERE co.id = ?"
+        )
+          .bind(checkoutId)
+          .first<any>();
+
+        return jsonResponse(formatCycleCheckout(updated));
       }
 
       return jsonResponse({ error: "Not Found" }, 404);

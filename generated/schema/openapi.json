@@ -382,6 +382,41 @@
         }
       }
     },
+    "/api/checkouts/{id}/return": {
+      "post": {
+        "operationId": "Endpoints_returnCheckout",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CycleCheckout"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/cities": {
       "get": {
         "operationId": "Endpoints_listCities",
@@ -572,6 +607,41 @@
         }
       }
     },
+    "/api/cycles/{id}/checkout": {
+      "post": {
+        "operationId": "Endpoints_checkoutCycle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CycleCheckout"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "Endpoints_getHealth",
@@ -664,6 +734,60 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RespondInvitationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/active-checkout": {
+      "get": {
+        "operationId": "Endpoints_getMyActiveCheckout",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveCheckoutResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/home-parking": {
+      "get": {
+        "operationId": "Endpoints_getMyHomeParking",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeParkingResponse"
+                }
               }
             }
           }
@@ -1330,6 +1454,14 @@
   },
   "components": {
     "schemas": {
+      "ActiveCheckoutResponse": {
+        "type": "object",
+        "properties": {
+          "activeCheckout": {
+            "$ref": "#/components/schemas/CycleCheckout"
+          }
+        }
+      },
       "Building": {
         "type": "object",
         "required": [
@@ -1365,6 +1497,13 @@
         "enum": [
           "Private",
           "Public"
+        ]
+      },
+      "CheckoutStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "returned"
         ]
       },
       "City": {
@@ -1498,7 +1637,6 @@
           "cycleModel",
           "colour",
           "status",
-          "lockCode",
           "qrCode",
           "qrUrl",
           "createdAt",
@@ -1546,6 +1684,67 @@
           },
           "cityName": {
             "type": "string"
+          },
+          "isAvailable": {
+            "type": "boolean"
+          },
+          "isCheckedOutByMe": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CycleCheckout": {
+        "type": "object",
+        "required": [
+          "id",
+          "cycleId",
+          "personId",
+          "parkingId",
+          "checkedOutAt",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "cycleId": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "checkedOutAt": {
+            "type": "string"
+          },
+          "returnedAt": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CheckoutStatus"
+          },
+          "publicCycleId": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "cycleModel": {
+            "type": "string"
+          },
+          "colour": {
+            "type": "string"
+          },
+          "lockCode": {
+            "type": "string"
+          },
+          "parkingName": {
+            "type": "string"
+          },
+          "cityName": {
+            "type": "string"
           }
         }
       },
@@ -1573,6 +1772,27 @@
           },
           "environment": {
             "type": "string"
+          }
+        }
+      },
+      "HomeParkingResponse": {
+        "type": "object",
+        "required": [
+          "parking",
+          "cycles"
+        ],
+        "properties": {
+          "parking": {
+            "$ref": "#/components/schemas/Parking"
+          },
+          "cycles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Cycle"
+            }
+          },
+          "activeCheckout": {
+            "$ref": "#/components/schemas/CycleCheckout"
           }
         }
       },

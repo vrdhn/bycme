@@ -223,13 +223,44 @@ export interface Cycle {
   cycleModel: string;
   colour: string;
   status: CycleStatus;
-  lockCode: string;
+  lockCode?: string;
   qrCode: string;
   qrUrl: string;
   createdAt: string;
   updatedAt: string;
   parkingName?: string;
   cityName?: string;
+  isAvailable?: boolean;
+  isCheckedOutByMe?: boolean;
+}
+
+export type CheckoutStatus = "active" | "returned";
+
+export interface CycleCheckout {
+  id: string;
+  cycleId: string;
+  personId: string;
+  parkingId: string;
+  checkedOutAt: string;
+  returnedAt?: string;
+  status: CheckoutStatus;
+  publicCycleId?: string;
+  brand?: string;
+  cycleModel?: string;
+  colour?: string;
+  lockCode?: string;
+  parkingName?: string;
+  cityName?: string;
+}
+
+export interface ActiveCheckoutResponse {
+  activeCheckout?: CycleCheckout;
+}
+
+export interface HomeParkingResponse {
+  parking: Parking;
+  cycles: Cycle[];
+  activeCheckout?: CycleCheckout;
 }
 
 export interface CreateCycleRequest {
@@ -625,5 +656,35 @@ export class BycmeClient {
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
     return this.request<Cycle>(`/api/cycles/lookup/${encodeURIComponent(identifier)}`, { headers });
+  }
+
+  getMyActiveCheckout(token?: string): Promise<ActiveCheckoutResponse> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<ActiveCheckoutResponse>("/api/me/active-checkout", { headers });
+  }
+
+  getMyHomeParking(token?: string): Promise<HomeParkingResponse> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<HomeParkingResponse>("/api/me/home-parking", { headers });
+  }
+
+  checkoutCycle(cycleId: string, token?: string): Promise<CycleCheckout> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<CycleCheckout>(`/api/cycles/${encodeURIComponent(cycleId)}/checkout`, {
+      method: "POST",
+      headers,
+    });
+  }
+
+  returnCheckout(checkoutId: string, token?: string): Promise<CycleCheckout> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<CycleCheckout>(`/api/checkouts/${encodeURIComponent(checkoutId)}/return`, {
+      method: "POST",
+      headers,
+    });
   }
 }

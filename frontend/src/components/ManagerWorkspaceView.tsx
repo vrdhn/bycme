@@ -273,7 +273,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
   const handleOpenEdit = (cycle: Cycle) => {
     setEditingCycle(cycle);
     setEditStatus(cycle.status);
-    setEditLockCode(cycle.lockCode);
+    setEditLockCode(cycle.lockCode || "");
     setEditQrCode(cycle.qrCode);
     setEditColour(cycle.colour);
     setModalError(null);
@@ -323,7 +323,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
       c.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.cycleModel.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.colour.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.lockCode.includes(searchQuery);
+      (c.lockCode || "").includes(searchQuery);
 
     const matchesStatus = statusFilter === "all" || c.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -547,7 +547,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                         color: "var(--text-main)",
                       }}
                     >
-                      🔒 {cyc.lockCode}
+                      🔒 {cyc.lockCode || "----"}
                     </span>
                   </td>
 

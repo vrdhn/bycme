@@ -7,6 +7,8 @@ import { ManagerRequestsView } from "./components/ManagerRequestsView";
 import { AdminInvitationsView } from "./components/AdminInvitationsView";
 import { ManagerWorkspaceView } from "./components/ManagerWorkspaceView";
 import { InvitationLanding } from "./components/InvitationLanding";
+import { RiderWorkspaceView } from "./components/RiderWorkspaceView";
+import { CycleQrPortal } from "./components/CycleQrPortal";
 
 const API_BASE = "https://bycme-staging.bycme-backend.workers.dev";
 const client = new BycmeClient(API_BASE);
@@ -31,15 +33,29 @@ export default function App() {
     return null;
   });
 
+  const [cycleQrCode, setCycleQrCode] = useState<string | null>(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith("#/cycle/")) {
+      return hash.replace("#/cycle/", "").trim();
+    }
+    return null;
+  });
+
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
       if (hash.startsWith("#/join/mgr/")) {
         setInviteToken(hash.replace("#/join/mgr/", "").trim());
+        setCycleQrCode(null);
       } else if (hash.startsWith("#/join/rider/")) {
         setInviteToken(hash.replace("#/join/rider/", "").trim());
+        setCycleQrCode(null);
+      } else if (hash.startsWith("#/cycle/")) {
+        setCycleQrCode(hash.replace("#/cycle/", "").trim());
+        setInviteToken(null);
       } else {
         setInviteToken(null);
+        setCycleQrCode(null);
       }
     };
     window.addEventListener("hashchange", handleHashChange);
@@ -136,6 +152,37 @@ export default function App() {
           onBackToLanding={() => {
             window.location.hash = "";
             setInviteToken(null);
+            setView("home");
+          }}
+        />
+      </>
+    );
+  }
+
+  if (cycleQrCode) {
+    return (
+      <>
+        <StatusBar
+          apiClient={client}
+          currentUser={currentUser}
+          onBrandClick={() => {
+            window.location.hash = "";
+            setCycleQrCode(null);
+            setView("home");
+          }}
+          onLogout={handleLogout}
+        />
+        <CycleQrPortal
+          apiClient={client}
+          qrCode={cycleQrCode}
+          authToken={authToken}
+          currentUser={currentUser}
+          onAuthSuccess={(t, u) => {
+            handleLoginSuccess(t, u);
+          }}
+          onBackToLanding={() => {
+            window.location.hash = "";
+            setCycleQrCode(null);
             setView("home");
           }}
         />
@@ -307,11 +354,8 @@ export default function App() {
               </div>
 
               {/* Rider Workspace View */}
-              {workspaceRole === "rider" && currentUser.roles.includes("Rider") && (
-                <div className="card" style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
-                  <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>🚲 Rider Workspace</h3>
-                  <p style={{ margin: 0 }}>Rider console and bike reservation features are upcoming.</p>
-                </div>
+              {workspaceRole === "rider" && currentUser.roles.includes("Rider") && authToken && (
+                <RiderWorkspaceView apiClient={client} token={authToken} />
               )}
 
               {/* Manager Workspace View */}

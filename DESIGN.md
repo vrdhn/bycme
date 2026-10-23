@@ -176,6 +176,27 @@
 * **Active Riders Directory**:
   * Real-time roster of authorized riders for each parking station.
 
+### `feat009`: Rider Workspace, Cycle Checkout & QR Code Portal
+* **Rider Home Stand Workspace**:
+  * Dedicated `RiderWorkspaceView` in `/app` accessible to users with `Rider` role.
+  * Resolves rider's assigned home parking stand via `GET /api/me/home-parking` and displays stationed cycles fleet.
+  * Real-time cycle availability indicator (`● Ready to Ride`, `⏳ In Use`, `✕ Out of Service`).
+* **Active Checkout Session & Lock Code Security**:
+  * Strict limit of maximum 1 active cycle checkout per rider enforced at database level via unique partial index.
+  * Mechanical combination lock code (`lockCode`) is concealed and only revealed to rider upon an active checkout.
+  * Active Checkout banner displays large combination lock code (`🔒 <lockCode>`) and 1-click Return action.
+  * Cycle return terminates checkout and returns bicycle to home stand inventory.
+* **Scan-to-Ride QR Portal (`/#/cycle/<qr_code>`)**:
+  * Deep-link portal at `/#/cycle/<qr_code>` handling public camera scans.
+  * In-situ Login/Register form for unauthenticated visitors.
+  * 5 validation gates before unlocking:
+    1. Caller holds authorized `Rider` role.
+    2. Cycle belongs to rider's designated home parking stand.
+    3. Cycle is in `'Working'` condition (rejects `'Puncture'`, `'Broken'`).
+    4. Cycle is not checked out by another resident.
+    5. Caller has no other active checkout.
+  * Unlocks cycle via `POST /api/cycles/{id}/checkout`, records checkout session, and displays combination code.
+
 ---
 
 ## 2. Database
@@ -342,6 +363,23 @@
   * `idx_rider_requests_person` on `rider_requests(person_id)` (`feat008`)
   * `idx_rider_requests_parking` on `rider_requests(parking_id, status)` (`feat008`)
 
+#### Table: `cycle_checkouts`
+| Column | Type | Constraints | Description | Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | Unique checkout session identifier | `feat009` |
+| `cycle_id` | `TEXT` | `NOT NULL REFERENCES cycles(id) ON DELETE RESTRICT` | Checked-out cycle foreign key | `feat009` |
+| `person_id` | `TEXT` | `NOT NULL REFERENCES persons(id) ON DELETE CASCADE` | Rider user foreign key | `feat009` |
+| `parking_id` | `TEXT` | `NOT NULL REFERENCES parkings(id) ON DELETE RESTRICT` | Originating home stand foreign key | `feat009` |
+| `checked_out_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Checkout timestamp | `feat009` |
+| `returned_at` | `DATETIME` | | Return timestamp | `feat009` |
+| `status` | `TEXT` | `NOT NULL CHECK (status IN ('active', 'returned')) DEFAULT 'active'` | Session state | `feat009` |
+
+* **Indexes**:
+  * `idx_cycle_checkouts_active_cycle` on `cycle_checkouts(cycle_id) WHERE status = 'active'` (`feat009`)
+  * `idx_cycle_checkouts_active_person` on `cycle_checkouts(person_id) WHERE status = 'active'` (`feat009`)
+  * `idx_cycle_checkouts_parking` on `cycle_checkouts(parking_id, status)` (`feat009`)
+  * `idx_cycle_checkouts_person` on `cycle_checkouts(person_id, status)` (`feat009`)
+
 ### Migrations
 | Migration | Description | Feature |
 | :--- | :--- | :--- |
@@ -352,6 +390,7 @@
 | `sqlsource/migrations/0005_managers.sql` | Manager requests and parking managers rosters | `feat005` |
 | `sqlsource/migrations/0006_cycles.sql` | Cycles table for bicycle inventory management | `feat006` |
 | `sqlsource/migrations/0007_riders.sql` | Single-shed parking riders roster and transfer requests | `feat008` |
+| `sqlsource/migrations/0008_checkouts.sql` | Cycle checkout sessions enforcing 1 active cycle per rider | `feat009` |
 
 ### Seed Files
 | Seed File | Description | Feature |
@@ -362,6 +401,7 @@
 | `sqlsource/seeds/seed-004-managers.sql` | Sample applicant user and initial pending manager request | `feat005` |
 | `sqlsource/seeds/seed-005-cycles.sql` | Baseline fleet stationed at `prk-tm-tower-a` | `feat006` |
 | `sqlsource/seeds/seed-006-riders.sql` | Sample active riders (`kavita@bycme.in`, `rahim@bycme.in`), pending transfer (`deepak@bycme.in`), and active rider invitation | `feat008` |
+| `sqlsource/seeds/seed-007-checkouts.sql` | Active sample cycle checkout session for `kavita@bycme.in` | `feat009` |
 
 ---
 
@@ -399,9 +439,13 @@
 * `RespondInvitationRequest`: `{ confirmSwitch?: boolean }` (`feat008`)
 * `RespondInvitationResponse`: `{ action: string, status: string, message: string, currentParkingName?: string, currentCityName?: string, targetParkingName?: string, request?: ManagerRequest, riderRequest?: RiderRequest, parkingManager?: ParkingManager, parkingRider?: ParkingRider }` (`feat005, feat008`)
 * `CycleStatus`: `"Working" | "Puncture" | "Broken"` (`feat006`)
-* `Cycle`: `{ id: string, publicCycleId: string, parkingId: string, brand: string, cycleModel: string, colour: string, status: CycleStatus, lockCode: string, qrCode: string, qrUrl: string, createdAt: string, updatedAt: string, parkingName?: string, cityName?: string }` (`feat006`)
+* `Cycle`: `{ id: string, publicCycleId: string, parkingId: string, brand: string, cycleModel: string, colour: string, status: CycleStatus, lockCode?: string, qrCode: string, qrUrl: string, createdAt: string, updatedAt: string, parkingName?: string, cityName?: string, isAvailable?: boolean, isCheckedOutByMe?: boolean }` (`feat006, feat009`)
 * `CreateCycleRequest`: `{ publicCycleId?: string, brand: string, cycleModel: string, colour: string, status?: CycleStatus, lockCode: string, qrCode?: string }` (`feat006, fix006`)
 * `UpdateCycleRequest`: `{ brand?: string, cycleModel?: string, colour?: string, status?: CycleStatus, lockCode?: string, qrCode?: string, parkingId?: string }` (`feat006`)
+* `CheckoutStatus`: `"active" | "returned"` (`feat009`)
+* `CycleCheckout`: `{ id: string, cycleId: string, personId: string, parkingId: string, checkedOutAt: string, returnedAt?: string, status: CheckoutStatus, publicCycleId?: string, brand?: string, cycleModel?: string, colour?: string, lockCode?: string, parkingName?: string, cityName?: string }` (`feat009`)
+* `ActiveCheckoutResponse`: `{ activeCheckout?: CycleCheckout }` (`feat009`)
+* `HomeParkingResponse`: `{ parking: Parking, cycles: Cycle[], activeCheckout?: CycleCheckout }` (`feat009`)
 
 ### Endpoints Table
 
@@ -442,7 +486,11 @@
 | `feat006, fix004` | `GET` | `/api/parkings/{id}/cycles` | List cycles stationed at parking stand | `Authorization: Bearer <token>` (Manager) | None | `Cycle[]` |
 | `feat006, fix004, fix006` | `POST` | `/api/parkings/{id}/cycles` | Register new cycle to parking stand (auto-generates cycle ID, validates numeric lock code) | `Authorization: Bearer <token>` (Manager) | `CreateCycleRequest` | `Cycle` |
 | `feat006, fix004, fix006` | `PUT` | `/api/cycles/{id}` | Update cycle condition, lock code, QR code, or metadata (validates numeric lock code) | `Authorization: Bearer <token>` (Manager) | `UpdateCycleRequest` | `Cycle` |
-| `feat006` | `GET` | `/api/cycles/lookup/{identifier}` | Search cycle by publicCycleId or qr_code | `Authorization: Bearer <token>` (Manager/Admin) | None | `Cycle` |
+| `feat006, feat009` | `GET` | `/api/cycles/lookup/{identifier}` | Search cycle by publicCycleId or qr_code (reveals lockCode only if active checkout exists) | Optional `Authorization: Bearer <token>` | None | `Cycle` |
+| `feat009` | `GET` | `/api/me/active-checkout` | Return caller's current active cycle checkout session | `Authorization: Bearer <token>` | None | `ActiveCheckoutResponse` |
+| `feat009` | `GET` | `/api/me/home-parking` | Return rider's assigned home parking stand and stationed cycles fleet | `Authorization: Bearer <token>` (Rider) | None | `HomeParkingResponse` |
+| `feat009` | `POST` | `/api/cycles/{id}/checkout` | Checkout cycle at home stand (validates 1 cycle limit, condition, home stand; reveals lock code) | `Authorization: Bearer <token>` (Rider) | None | `CycleCheckout` |
+| `feat009` | `POST` | `/api/checkouts/{id}/return` | Check-in / return cycle back to stand | `Authorization: Bearer <token>` | None | `CycleCheckout` |
 
 ---
 
@@ -452,4 +500,4 @@
 | :--- | :--- | :--- | :--- |
 | `/#/join/mgr/<token>` | Manager invitation landing page (login/register + claim or request management) | `feat004, feat005` | Prospective Manager |
 | `/#/join/rider/<token>` | Rider invitation landing page (login/register + claim or request rider access with single-shed transfer confirmation) | `feat008` | Prospective / Existing Rider |
-| `/#/cycle/<qr_code>` | Cycle QR code lookup portal (view status, lock code, and reservation actions) | `feat006` | Authorized Rider / Manager |
+| `/#/cycle/<qr_code>` | Cycle QR code lookup and scan-to-ride portal (view status, login/register, validate, and unlock) | `feat009` | Authorized Resident Rider |
