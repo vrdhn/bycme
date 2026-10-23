@@ -2,6 +2,8 @@
 """Developer workflow driver for bycme repository."""
 
 import argparse
+import getpass
+import hashlib
 import json
 import os
 import platform
@@ -462,9 +464,10 @@ def run_build_command() -> int:
     return 0
 
 
-def run_migrate_command(env_name: str = "staging") -> int:
+def run_migrate_command(env_name: str = "staging", is_dev: bool = False) -> int:
     """Apply pending SQL migrations to Cloudflare D1 database."""
-    print(f"\n=== [Migrate] Applying D1 Database Migrations ({env_name}) ===")
+    mode_label = "local" if is_dev else env_name
+    print(f"\n=== [Migrate] Applying D1 Database Migrations ({mode_label}) ===")
     wrangler_path = shutil.which("wrangler")
     if not wrangler_path:
         print("[FAIL] wrangler not found; run './btool install'")
@@ -476,13 +479,14 @@ def run_migrate_command(env_name: str = "staging") -> int:
 
     print(f"Applying pending migrations from sqlsource/migrations/ to '{db_name}' ...")
     env = {**os.environ, "CI": "true"}
+    mode_flag = "--local" if is_dev else "--remote"
     cmd = [
         wrangler_path,
         "d1",
         "migrations",
         "apply",
         db_name,
-        "--remote",
+        mode_flag,
     ]
     proc = subprocess.run(cmd, cwd=backend_dir, env=env, check=False)
     if proc.returncode != 0:
@@ -591,126 +595,135 @@ def run_dbdrop_command(env_name: str = "staging", auto_confirm: bool = False) ->
     return 0
 
 
-def run_dbseed_command(env_name: str = "staging") -> int:
-    """Populate staging D1 database with test accounts, buildings, parkings, and cycles."""
-    if env_name != "staging":
-        print(f"[FAIL] dbseed is strictly prohibited for environment '{env_name}'. It is only available for 'staging'.")
-        return 1
-
+def run_dbseed_command(env_name: str = "staging", is_dev: bool = False) -> int:
+    """Populate D1 database with seed SQL files from sqlsource/seeds/."""
     wrangler_path = shutil.which("wrangler")
     if not wrangler_path:
         print("[FAIL] wrangler not found; run './btool install'")
         return 1
 
     config = load_config()
-    db_name = get_env_db(config, "staging")
+    db_name = get_env_db(config, env_name)
     backend_dir = REPO_ROOT / "backend"
+    seeds_dir = REPO_ROOT / "sqlsource" / "seeds"
 
-    print("\n=== [dbseed] Seeding Staging D1 Database ===")
-    print(f"Target Database: {db_name} (staging)")
+    mode_label = "local" if is_dev else env_name
+    print(f"\n=== [dbseed] Seeding D1 Database ({mode_label}) ===")
+    print(f"Target Database: {db_name}")
 
-    # Ensure schema migrations exist first
     print("Ensuring latest schema migrations are applied ...")
-    mig_rc = run_migrate_command("staging")
+    mig_rc = run_migrate_command(env_name, is_dev=is_dev)
     if mig_rc != 0:
         print("[FAIL] Migration failed before seeding.")
         return mig_rc
 
-    seed_statements = [
-        # 1. 10 Indian User Accounts (all passwords 'test')
-        "INSERT OR REPLACE INTO persons (id, name, email, password_hash) VALUES "
-        "('usr-aarav', 'Aarav Sharma', 'aarav@bycme.local', 'test'), "
-        "('usr-priya', 'Priya Patel', 'priya@bycme.local', 'test'), "
-        "('usr-rohan', 'Rohan Verma', 'rohan@bycme.local', 'test'), "
-        "('usr-ananya', 'Ananya Iyer', 'ananya@bycme.local', 'test'), "
-        "('usr-vikram', 'Vikram Singh', 'vikram@bycme.local', 'test'), "
-        "('usr-neha', 'Neha Gupta', 'neha@bycme.local', 'test'), "
-        "('usr-rahul', 'Rahul Nair', 'rahul@bycme.local', 'test'), "
-        "('usr-pooja', 'Pooja Reddy', 'pooja@bycme.local', 'test'), "
-        "('usr-aditya', 'Aditya Joshi', 'aditya@bycme.local', 'test'), "
-        "('usr-kavita', 'Kavita Rao', 'kavita@bycme.local', 'test');",
+    if not seeds_dir.exists():
+        print(f"[FAIL] Seeds directory not found at {seeds_dir}")
+        return 1
 
-        # 2. Roles: 1 Admin, 3 Managers, all 10 as Riders
-        "INSERT OR IGNORE INTO person_roles (person_id, role) VALUES "
-        "('usr-aarav', 'Admin'), "
-        "('usr-priya', 'Manager'), "
-        "('usr-rohan', 'Manager'), "
-        "('usr-ananya', 'Manager'), "
-        "('usr-aarav', 'Rider'), "
-        "('usr-priya', 'Rider'), "
-        "('usr-rohan', 'Rider'), "
-        "('usr-ananya', 'Rider'), "
-        "('usr-vikram', 'Rider'), "
-        "('usr-neha', 'Rider'), "
-        "('usr-rahul', 'Rider'), "
-        "('usr-pooja', 'Rider'), "
-        "('usr-aditya', 'Rider'), "
-        "('usr-kavita', 'Rider');",
+    seed_files = sorted(seeds_dir.glob("seed-*.sql"))
+    if not seed_files:
+        master_seed = seeds_dir / "seed.sql"
+        if master_seed.exists():
+            seed_files = [master_seed]
+        else:
+            print("[WARN] No seed SQL files found in sqlsource/seeds/")
+            return 0
 
-        # 3. Buildings: Private & Public
-        "INSERT OR REPLACE INTO buildings (id, name, building_type) VALUES "
-        "('bld-tech-park', 'TechMahindra Innovation Park', 'Private'), "
-        "('bld-civic-center', 'Indira Gandhi Civic Complex', 'Public');",
-
-        # 4. Parkings
-        "INSERT OR REPLACE INTO parkings (id, building_id, name, capacity) VALUES "
-        "('prk-tm-tower-a', 'bld-tech-park', 'TechMahindra Tower A Stand', 20), "
-        "('prk-tm-tower-b', 'bld-tech-park', 'TechMahindra Tower B Stand', 15), "
-        "('prk-civic-metro', 'bld-civic-center', 'Civic Plaza Metro Stand', 30), "
-        "('prk-civic-north', 'bld-civic-center', 'Civic Plaza North Hub', 25);",
-
-        # 5. Parking Managers
-        "INSERT OR IGNORE INTO parking_managers (parking_id, manager_id) VALUES "
-        "('prk-tm-tower-a', 'usr-priya'), "
-        "('prk-tm-tower-a', 'usr-rohan'), "
-        "('prk-tm-tower-b', 'usr-rohan'), "
-        "('prk-civic-metro', 'usr-ananya'), "
-        "('prk-civic-north', 'usr-ananya');",
-
-        # 6. Cycles in Private Parkings + Public
-        "INSERT OR REPLACE INTO cycles (id, public_cycle_id, parking_id, make_model, qr_code, condition) VALUES "
-        "('cyc-tm-101', 'CYC-TM-101', 'prk-tm-tower-a', 'Hero Sprint Pro / Matte Black', 'BYCME:CYC-TM-101', 'Working'), "
-        "('cyc-tm-102', 'CYC-TM-102', 'prk-tm-tower-a', 'Firefox Target 29 / Electric Blue', 'BYCME:CYC-TM-102', 'Working'), "
-        "('cyc-tm-103', 'CYC-TM-103', 'prk-tm-tower-a', 'Btwin Rockrider ST30 / Red', 'BYCME:CYC-TM-103', 'Broken'), "
-        "('cyc-tm-104', 'CYC-TM-104', 'prk-tm-tower-a', 'Hercules Roadeo Hardliner / Neon', 'BYCME:CYC-TM-104', 'Working'), "
-        "('cyc-tm-201', 'CYC-TM-201', 'prk-tm-tower-b', 'Montra Trance Pro / Gunmetal', 'BYCME:CYC-TM-201', 'Working'), "
-        "('cyc-tm-202', 'CYC-TM-202', 'prk-tm-tower-b', 'Btwin Riverside 120 / White', 'BYCME:CYC-TM-202', 'Puncture'), "
-        "('cyc-tm-203', 'CYC-TM-203', 'prk-tm-tower-b', 'Hero Octane Spring / Orange', 'BYCME:CYC-TM-203', 'Working'), "
-        "('cyc-cv-101', 'CYC-CV-101', 'prk-civic-metro', 'Atlas Ultimate City / Green', 'BYCME:CYC-CV-101', 'Working'), "
-        "('cyc-cv-102', 'CYC-CV-102', 'prk-civic-metro', 'Firefox Bad Attitude / Gray', 'BYCME:CYC-CV-102', 'Working');",
-
-        # 7. Invitations
-        "INSERT OR REPLACE INTO invitations (id, code, parking_id, created_by, status) VALUES "
-        "('inv-tm-2026', 'JOIN-TECH-2026', 'prk-tm-tower-a', 'usr-priya', 'active'), "
-        "('inv-cv-2026', 'JOIN-CIVIC-2026', 'prk-civic-metro', 'usr-ananya', 'active');",
-
-        # 8. Parking Memberships (Approved for Vikram, Neha, Rahul, Pooja; Pending for Aditya, Kavita)
-        "INSERT OR REPLACE INTO parking_memberships (id, parking_id, person_id, status) VALUES "
-        "('pm-vikram-a', 'prk-tm-tower-a', 'usr-vikram', 'approved'), "
-        "('pm-neha-a', 'prk-tm-tower-a', 'usr-neha', 'approved'), "
-        "('pm-rahul-b', 'prk-tm-tower-b', 'usr-rahul', 'approved'), "
-        "('pm-pooja-b', 'prk-tm-tower-b', 'usr-pooja', 'approved'), "
-        "('pm-aditya-a', 'prk-tm-tower-a', 'usr-aditya', 'pending'), "
-        "('pm-kavita-b', 'prk-tm-tower-b', 'usr-kavita', 'pending');"
-    ]
-
-    print("Inserting staging seed records ...")
+    mode_flag = "--local" if is_dev else "--remote"
     env = {**os.environ, "CI": "true"}
-    full_sql = " ".join(seed_statements)
+
+    for sf in seed_files:
+        print(f"Applying seed: {sf.name} ...")
+        cmd = [
+            wrangler_path,
+            "d1",
+            "execute",
+            db_name,
+            mode_flag,
+            f"--file={sf.resolve()}",
+        ]
+        proc = subprocess.run(cmd, cwd=backend_dir, env=env, check=False)
+        if proc.returncode != 0:
+            print(f"[FAIL] Seed file '{sf.name}' execution failed.")
+            return proc.returncode
+
+    print(f"[OK] Database '{db_name}' seeded successfully ({len(seed_files)} seed file(s) applied).")
+    return 0
+
+
+def hash_password(password: str, salt_hex: str | None = None) -> tuple[str, str]:
+    """Generate PBKDF2-HMAC-SHA256 salt and hash for password."""
+    if not salt_hex:
+        salt_hex = os.urandom(32).hex()
+    salt_bytes = bytes.fromhex(salt_hex)
+    key = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt_bytes, 100000)
+    return key.hex(), salt_hex
+
+
+def run_passwd_command(
+    email: str,
+    password: str | None = None,
+    env_name: str = "staging",
+    is_dev: bool = False,
+) -> int:
+    """Update password for given user email in D1 database."""
+    wrangler_path = shutil.which("wrangler")
+    if not wrangler_path:
+        print("[FAIL] wrangler not found; run './btool install'")
+        return 1
+
+    if not email or not email.strip():
+        print("[FAIL] User email required.")
+        return 1
+
+    clean_email = email.strip()
+
+    if not password:
+        try:
+            pwd1 = getpass.getpass(f"Enter new password for '{clean_email}': ")
+            if not pwd1:
+                print("[FAIL] Password cannot be empty.")
+                return 1
+            pwd2 = getpass.getpass("Confirm new password: ")
+            if pwd1 != pwd2:
+                print("[FAIL] Passwords do not match.")
+                return 1
+            password = pwd1
+        except (KeyboardInterrupt, EOFError):
+            print("\n[CANCELLED] Password update aborted.")
+            return 1
+
+    pwd_hash, pwd_salt = hash_password(password)
+
+    config = load_config()
+    db_name = get_env_db(config, env_name)
+    backend_dir = REPO_ROOT / "backend"
+    mode_flag = "--local" if is_dev else "--remote"
+    env = {**os.environ, "CI": "true"}
+
+    escaped_email = clean_email.replace("'", "''")
+    sql = (
+        f"UPDATE persons SET password_hash = '{pwd_hash}', password_salt = '{pwd_salt}' "
+        f"WHERE LOWER(email) = LOWER('{escaped_email}');"
+    )
+
+    mode_label = "local" if is_dev else env_name
+    print(f"Updating password for '{clean_email}' in '{db_name}' ({mode_label}) ...")
     cmd = [
         wrangler_path,
         "d1",
         "execute",
         db_name,
-        "--remote",
-        f"--command={full_sql}",
+        mode_flag,
+        f"--command={sql}",
     ]
     proc = subprocess.run(cmd, cwd=backend_dir, env=env, check=False)
     if proc.returncode != 0:
-        print(f"[FAIL] Seeding failed for database '{db_name}'.")
+        print(f"[FAIL] Password update failed for '{clean_email}'.")
         return proc.returncode
 
-    print(f"[OK] Staging database '{db_name}' seeded successfully with 10 Indian user accounts, buildings, parkings, and cycles.")
+    print(f"[OK] Password updated successfully for '{clean_email}'.")
     return 0
 
 
@@ -820,10 +833,12 @@ def format_custom_help() -> str:
         "  publish            Deploy backend Worker and frontend Pages to Cloudflare (--env <name>)",
         "  staging            Execute complete staging pipeline (check -> codegen -> build -> migrate -> publish)",
         "  dbdrop             Drop all tables and migration state in D1 database (staging only)",
-        "  dbseed             Seed staging D1 database with Indian test accounts and infrastructure (staging only)",
+        "  dbseed             Seed D1 database from sqlsource/seeds/ (--env <name> [--dev])",
+        "  passwd             Update user password in D1 database (<email> [--password <pwd>] [--dev])",
         "",
         "Options:",
-        "  --env <name>       Target environment for migrate, publish, and staging (default: staging)",
+        "  --env <name>       Target environment for migrate, publish, dbseed, and passwd (default: staging)",
+        "  --dev              Target local D1 database emulator instead of remote Cloudflare",
         "  -h, --help         Show this help message and exit",
         "",
         "Configured Environments (from config.json):",
@@ -865,6 +880,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     migrate_p = subparsers.add_parser("migrate", help="Apply SQL migrations to D1 database")
     migrate_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
+    migrate_p.add_argument("--dev", "--local", dest="dev", action="store_true", help="Target local D1 emulator")
 
     publish_p = subparsers.add_parser("publish", help="Publish Worker and Pages to Cloudflare")
     publish_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
@@ -876,8 +892,15 @@ def build_parser() -> argparse.ArgumentParser:
     dbdrop_p.add_argument("--env", default="staging", help="Target environment (strictly 'staging')")
     dbdrop_p.add_argument("-y", "--yes", action="store_true", help="Confirm database drop without interactive prompt")
 
-    dbseed_p = subparsers.add_parser("dbseed", help="Seed staging D1 database with Indian test accounts and infrastructure (staging only)")
-    dbseed_p.add_argument("--env", default="staging", help="Target environment (strictly 'staging')")
+    dbseed_p = subparsers.add_parser("dbseed", help="Seed D1 database from sqlsource/seeds/")
+    dbseed_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
+    dbseed_p.add_argument("--dev", "--local", dest="dev", action="store_true", help="Target local D1 emulator")
+
+    passwd_p = subparsers.add_parser("passwd", help="Update user password in D1 database")
+    passwd_p.add_argument("email", help="Target user email")
+    passwd_p.add_argument("-p", "--password", default=None, help="New password (prompts securely if omitted)")
+    passwd_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
+    passwd_p.add_argument("--dev", "--local", dest="dev", action="store_true", help="Target local D1 emulator")
 
     subparsers.add_parser("help", help="Show categorized help and environment details")
 
@@ -899,6 +922,7 @@ def main() -> None:
         sys.exit(0)
 
     target_env = getattr(args, "env", "staging")
+    is_dev = getattr(args, "dev", False)
 
     commands = {
         "check": run_check_command,
@@ -907,11 +931,17 @@ def main() -> None:
         "codegen": run_codegen_command,
         "verify": run_verify_command,
         "build": run_build_command,
-        "migrate": lambda: run_migrate_command(target_env),
+        "migrate": lambda: run_migrate_command(target_env, is_dev=is_dev),
         "publish": lambda: run_publish_command(target_env),
         "staging": lambda: run_staging_command(target_env),
         "dbdrop": lambda: run_dbdrop_command(target_env, auto_confirm=getattr(args, "yes", False)),
-        "dbseed": lambda: run_dbseed_command(target_env),
+        "dbseed": lambda: run_dbseed_command(target_env, is_dev=is_dev),
+        "passwd": lambda: run_passwd_command(
+            getattr(args, "email", ""),
+            password=getattr(args, "password", None),
+            env_name=target_env,
+            is_dev=is_dev,
+        ),
     }
 
     handler = commands.get(args.command)

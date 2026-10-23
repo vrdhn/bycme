@@ -17,9 +17,45 @@ model HealthStatus {
   environment: string;
 }
 
+enum PersonRole {
+  Admin,
+  Manager,
+  Rider,
+}
+
+model Person {
+  id: string;
+  email: string;
+  name: string;
+  roles: PersonRole[];
+  createdAt: string;
+}
+
+model LoginRequest {
+  email: string;
+  password: string;
+}
+
+model LoginResponse {
+  token: string;
+  user: Person;
+}
+
 @route("/api")
 namespace Endpoints {
   @get
   @route("/health")
   op getHealth(): HealthStatus;
+
+  @post
+  @route("/auth/login")
+  op login(@body body: LoginRequest): LoginResponse;
+
+  @get
+  @route("/auth/me")
+  op getMe(@header authorization?: string): Person;
+
+  @get
+  @route("/persons")
+  op listPersons(): Person[];
 }
