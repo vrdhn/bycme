@@ -297,4 +297,18 @@ namespace Endpoints {
     @path id: string,
     @header authorization?: string
   ): ManagerRequest;
+
+  @get
+  @route("/admin/invitations")
+  op listAdminInvitations(
+    @header authorization?: string,
+    @query status?: string
+  ): ManagerInvitation[];
+
+  @post
+  @route("/admin/invitations/{id}/revoke")
+  op revokeAdminInvitation(
+    @path id: string,
+    @header authorization?: string
+  ): ManagerInvitation;
 }

@@ -72,6 +72,17 @@ export function ManagerInviteModal({
     }
   };
 
+  const handleExpire = async (id: string) => {
+    try {
+      await apiClient.revokeAdminInvitation(id, token);
+      setSuccessMsg("Invitation link expired.");
+      setTimeout(() => setSuccessMsg(null), 3000);
+      loadInvitations();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to expire invitation");
+    }
+  };
+
   return (
     <div
       style={{
@@ -244,14 +255,18 @@ export function ManagerInviteModal({
                     background: "var(--card-bg-subtle)",
                     border: "1px solid var(--border-color)",
                     borderRadius: "0.5rem",
-                    padding: "0.6rem 0.8rem",
+                    padding: "0.75rem 0.85rem",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    gap: "0.5rem",
                   }}
                 >
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "0.2rem" }}>
+                      📍 {parking.name} <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>({parking.buildingName || "Building"}{parking.cityName ? `, ${parking.cityName}` : ""})</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap", marginBottom: "0.2rem" }}>
                       <span style={{ fontFamily: "monospace", fontSize: "0.75rem", fontWeight: 600 }}>
                         ...{inv.token}
                       </span>
@@ -273,14 +288,24 @@ export function ManagerInviteModal({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    className="btn-text"
-                    style={{ fontSize: "0.75rem", color: copiedId === inv.id ? "#15803d" : "var(--primary-color)" }}
-                    onClick={() => handleCopy(inv.whatsappMessage, inv.id)}
-                  >
-                    {copiedId === inv.id ? "✓ Copied!" : "Copy Text"}
-                  </button>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem", alignItems: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="btn-text"
+                      style={{ fontSize: "0.75rem", color: copiedId === inv.id ? "#15803d" : "var(--primary-color)", padding: 0 }}
+                      onClick={() => handleCopy(inv.whatsappMessage, inv.id)}
+                    >
+                      {copiedId === inv.id ? "✓ Copied!" : "📋 Copy Text"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-text"
+                      style={{ fontSize: "0.7rem", color: "#b91c1c", padding: 0 }}
+                      onClick={() => handleExpire(inv.id)}
+                    >
+                      🚫 Expire
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>

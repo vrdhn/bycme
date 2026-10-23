@@ -1083,6 +1083,90 @@ export default {
         return jsonResponse(updated);
       }
 
+      // Admin list all invitations
+      if (pathname === "/api/admin/invitations" && request.method === "GET") {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Admin")) {
+          return jsonResponse({ error: "Forbidden: Admin role required" }, 403);
+        }
+
+        const statusParam = url.searchParams.get("status");
+        let sql =
+          "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.is_preapproved, i.expires_at, i.created_at, " +
+          "p.name as parking_name, c.name as city_name, b.name as building_name, u.name as created_by_name " +
+          "FROM invitations i " +
+          "LEFT JOIN parkings p ON i.parking_id = p.id " +
+          "LEFT JOIN buildings b ON p.building_id = b.id " +
+          "LEFT JOIN cities c ON b.city_id = c.id " +
+          "LEFT JOIN persons u ON i.created_by = u.id ";
+
+        if (statusParam === "active") {
+          sql += "WHERE i.status = 'active' AND datetime(i.expires_at) > datetime('now') ";
+        } else if (statusParam === "used") {
+          sql += "WHERE i.status = 'used' ";
+        } else if (statusParam === "revoked") {
+          sql += "WHERE i.status = 'revoked' ";
+        } else if (statusParam === "expired") {
+          sql += "WHERE i.status = 'active' AND datetime(i.expires_at) <= datetime('now') ";
+        }
+        sql += "ORDER BY i.created_at DESC";
+
+        const res = await env.DB.prepare(sql).all<any>();
+        const formatted = (res.results || []).map((row) =>
+          formatManagerInvitation(row, "https://bycme-staging.pages.dev")
+        );
+        return jsonResponse(formatted);
+      }
+
+      // Admin revoke / expire invitation immediately
+      if (
+        pathname.startsWith("/api/admin/invitations/") &&
+        pathname.endsWith("/revoke") &&
+        request.method === "POST"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Admin")) {
+          return jsonResponse({ error: "Forbidden: Admin role required" }, 403);
+        }
+
+        const invId = decodeURIComponent(
+          pathname.replace("/api/admin/invitations/", "").replace("/revoke", "")
+        );
+
+        const invRow = await env.DB.prepare("SELECT id FROM invitations WHERE id = ?")
+          .bind(invId)
+          .first<any>();
+
+        if (!invRow) {
+          return jsonResponse({ error: "Invitation not found" }, 404);
+        }
+
+        await env.DB.prepare("UPDATE invitations SET status = 'revoked' WHERE id = ?")
+          .bind(invId)
+          .run();
+
+        const updated = await env.DB.prepare(
+          "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.is_preapproved, i.expires_at, i.created_at, " +
+            "p.name as parking_name, c.name as city_name, b.name as building_name, u.name as created_by_name " +
+            "FROM invitations i " +
+            "LEFT JOIN parkings p ON i.parking_id = p.id " +
+            "LEFT JOIN buildings b ON p.building_id = b.id " +
+            "LEFT JOIN cities c ON b.city_id = c.id " +
+            "LEFT JOIN persons u ON i.created_by = u.id " +
+            "WHERE i.id = ?"
+        )
+          .bind(invId)
+          .first<any>();
+
+        return jsonResponse(formatManagerInvitation(updated, "https://bycme-staging.pages.dev"));
+      }
+
       // Admin reject manager request
       if (
         pathname.startsWith("/api/admin/manager-requests/") &&

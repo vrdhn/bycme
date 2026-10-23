@@ -388,4 +388,23 @@ export class BycmeClient {
       }
     );
   }
+
+  listAdminInvitations(token?: string, status?: string): Promise<ManagerInvitation[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const q = status ? `?status=${encodeURIComponent(status)}` : "";
+    return this.request<ManagerInvitation[]>(`/api/admin/invitations${q}`, { headers });
+  }
+
+  revokeAdminInvitation(id: string, token?: string): Promise<ManagerInvitation> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<ManagerInvitation>(
+      `/api/admin/invitations/${encodeURIComponent(id)}/revoke`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
+  }
 }

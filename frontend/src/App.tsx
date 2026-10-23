@@ -4,6 +4,7 @@ import { StatusBar } from "./components/StatusBar";
 import { LoginForm } from "./components/LoginForm";
 import { LocationsAdminView } from "./components/LocationsAdminView";
 import { ManagerRequestsView } from "./components/ManagerRequestsView";
+import { AdminInvitationsView } from "./components/AdminInvitationsView";
 import { InvitationLanding } from "./components/InvitationLanding";
 
 const API_BASE = "https://bycme-staging.bycme-backend.workers.dev";
@@ -11,7 +12,7 @@ const client = new BycmeClient(API_BASE);
 
 export default function App() {
   const [view, setView] = useState<"home" | "login" | "app">("home");
-  const [adminSection, setAdminSection] = useState<"locations" | "requests" | "users">("locations");
+  const [adminSection, setAdminSection] = useState<"locations" | "requests" | "invitations" | "users">("locations");
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<Person | null>(null);
   const [persons, setPersons] = useState<Person[]>([]);
@@ -258,6 +259,13 @@ export default function App() {
                       📬 Manager Requests
                     </button>
                     <button
+                      className={adminSection === "invitations" ? "btn-primary" : "btn-secondary"}
+                      style={{ width: "auto", padding: "0.5rem 1.25rem" }}
+                      onClick={() => setAdminSection("invitations")}
+                    >
+                      🎟️ Invitations
+                    </button>
+                    <button
                       className={adminSection === "users" ? "btn-primary" : "btn-secondary"}
                       style={{ width: "auto", padding: "0.5rem 1.25rem" }}
                       onClick={() => setAdminSection("users")}
@@ -272,6 +280,10 @@ export default function App() {
 
                   {adminSection === "requests" && authToken && (
                     <ManagerRequestsView apiClient={client} token={authToken} />
+                  )}
+
+                  {adminSection === "invitations" && authToken && (
+                    <AdminInvitationsView apiClient={client} token={authToken} />
                   )}
 
                   {adminSection === "users" && (

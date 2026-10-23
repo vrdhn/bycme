@@ -90,6 +90,18 @@
   * Admin workspace tab for reviewing all manager requests across parkings.
   * Single-click Approve (marks request `approved`, grants `Manager` role, binds to `parking_managers`) and Reject (marks request `rejected`).
 
+### `fix003`: Admin Invitations Console & Parking Context
+* **Parking Station Context on Modal List**:
+  * Explicit parking name, building, and city tags on every invitation card in `ManagerInviteModal`.
+  * In-situ "Expire" button to immediately revoke specific links directly from the modal.
+* **Global Admin Invitations Console ("Invitations" Tab)**:
+  * Dedicated tab in Admin workspace aggregating invitations across all parking stations.
+  * Multi-status filtering (`Active`, `Used`, `Revoked`, `All`).
+  * Instant clipboard copy of WhatsApp message template and single-click link revocation.
+* **API Endpoints**:
+  * `GET /api/admin/invitations`: Lists invitations across all stations with joined location data.
+  * `POST /api/admin/invitations/{id}/revoke`: Immediately marks invitation as `revoked`.
+
 ---
 
 ## 2. Database
@@ -283,3 +295,5 @@
 | `feat005` | `GET` | `/api/admin/manager-requests` | List all submitted manager requests across parkings | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest[]` |
 | `feat005` | `POST` | `/api/admin/manager-requests/{id}/approve` | Approve manager request, create manager assignment, add role | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
 | `feat005` | `POST` | `/api/admin/manager-requests/{id}/reject` | Reject manager request | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
+| `fix003` | `GET` | `/api/admin/invitations` | List invitations across all parking stations with joined details | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |
+| `fix003` | `POST` | `/api/admin/invitations/{id}/revoke` | Revoke / expire invitation link immediately | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation` |
