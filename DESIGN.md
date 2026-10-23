@@ -115,6 +115,13 @@
   * Active station dock utilization indicator (current cycle count vs maximum parking capacity).
   * Real-time search across public IDs, brands, models, frame colors, and lock codes.
 
+### `fix004`: Enforce Strict Role Isolation for Workspaces
+* **Strict Role Partitioning**:
+  * Manager Workspace tab restricted exclusively to users possessing the `Manager` role in `person_roles`.
+  * Rider Workspace tab restricted exclusively to users possessing the `Rider` role in `person_roles` (removed disabled generic placeholder).
+  * System Administrators without the `Manager` role default to `🛡️ Admin Console` and do not see the Manager Workspace.
+  * Backend endpoints (`/api/me/parkings`, `/api/parkings/{id}/cycles`, `/api/cycles/{id}`) strictly enforce `Manager` role requirement and explicit assignment in `parking_managers`.
+
 ---
 
 ## 2. Database
@@ -336,8 +343,8 @@
 | `feat005` | `POST` | `/api/admin/manager-requests/{id}/reject` | Reject manager request | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
 | `fix003` | `GET` | `/api/admin/invitations` | List invitations across all parking stations with joined details | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |
 | `fix003` | `POST` | `/api/admin/invitations/{id}/revoke` | Revoke / expire invitation link immediately | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation` |
-| `feat006` | `GET` | `/api/me/parkings` | List parking stations managed by caller | `Authorization: Bearer <token>` (Manager/Admin) | None | `Parking[]` |
-| `feat006` | `GET` | `/api/parkings/{id}/cycles` | List cycles stationed at parking stand | `Authorization: Bearer <token>` (Manager/Admin) | None | `Cycle[]` |
-| `feat006` | `POST` | `/api/parkings/{id}/cycles` | Register new cycle to parking stand | `Authorization: Bearer <token>` (Manager/Admin) | `CreateCycleRequest` | `Cycle` |
-| `feat006` | `PUT` | `/api/cycles/{id}` | Update cycle condition, lock code, QR code, or metadata | `Authorization: Bearer <token>` (Manager/Admin) | `UpdateCycleRequest` | `Cycle` |
+| `feat006, fix004` | `GET` | `/api/me/parkings` | List parking stations managed by caller | `Authorization: Bearer <token>` (Manager) | None | `Parking[]` |
+| `feat006, fix004` | `GET` | `/api/parkings/{id}/cycles` | List cycles stationed at parking stand | `Authorization: Bearer <token>` (Manager) | None | `Cycle[]` |
+| `feat006, fix004` | `POST` | `/api/parkings/{id}/cycles` | Register new cycle to parking stand | `Authorization: Bearer <token>` (Manager) | `CreateCycleRequest` | `Cycle` |
+| `feat006, fix004` | `PUT` | `/api/cycles/{id}` | Update cycle condition, lock code, QR code, or metadata | `Authorization: Bearer <token>` (Manager) | `UpdateCycleRequest` | `Cycle` |
 | `feat006` | `GET` | `/api/cycles/lookup/{identifier}` | Search cycle by publicCycleId or qr_code | `Authorization: Bearer <token>` (Manager/Admin) | None | `Cycle` |

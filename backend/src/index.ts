@@ -1259,29 +1259,22 @@ export default {
         if (!caller) {
           return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
         }
+        if (!caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
 
-        let sql =
+        const sql =
           "SELECT p.id, p.building_id as buildingId, p.name, p.capacity, p.created_at as createdAt, " +
           "b.name as buildingName, c.name as cityName " +
           "FROM parkings p " +
+          "INNER JOIN parking_managers pm ON pm.parking_id = p.id " +
           "LEFT JOIN buildings b ON p.building_id = b.id " +
-          "LEFT JOIN cities c ON b.city_id = c.id ";
+          "LEFT JOIN cities c ON b.city_id = c.id " +
+          "WHERE pm.person_id = ? " +
+          "ORDER BY p.name";
 
-        // Admins see all parkings, Managers see assigned parkings
-        if (caller.roles.includes("Admin")) {
-          sql += "ORDER BY p.name";
-          const res = await env.DB.prepare(sql).all();
-          return jsonResponse(res.results || []);
-        } else if (caller.roles.includes("Manager")) {
-          sql +=
-            "INNER JOIN parking_managers pm ON pm.parking_id = p.id " +
-            "WHERE pm.person_id = ? " +
-            "ORDER BY p.name";
-          const res = await env.DB.prepare(sql).bind(caller.id).all();
-          return jsonResponse(res.results || []);
-        } else {
-          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
-        }
+        const res = await env.DB.prepare(sql).bind(caller.id).all();
+        return jsonResponse(res.results || []);
       }
 
       // List cycles at a parking lot
@@ -1294,20 +1287,21 @@ export default {
         if (!caller) {
           return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
         }
+        if (!caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
 
         const parkingId = decodeURIComponent(
           pathname.replace("/api/parkings/", "").replace("/cycles", "")
         );
 
-        if (!caller.roles.includes("Admin")) {
-          const isManager = await env.DB.prepare(
-            "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
-          )
-            .bind(parkingId, caller.id)
-            .first();
-          if (!isManager) {
-            return jsonResponse({ error: "Forbidden: Not manager of this parking lot" }, 403);
-          }
+        const isManager = await env.DB.prepare(
+          "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+        )
+          .bind(parkingId, caller.id)
+          .first();
+        if (!isManager) {
+          return jsonResponse({ error: "Forbidden: Not manager of this parking lot" }, 403);
         }
 
         const res = await env.DB.prepare(
@@ -1340,20 +1334,21 @@ export default {
         if (!caller) {
           return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
         }
+        if (!caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
 
         const parkingId = decodeURIComponent(
           pathname.replace("/api/parkings/", "").replace("/cycles", "")
         );
 
-        if (!caller.roles.includes("Admin")) {
-          const isManager = await env.DB.prepare(
-            "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
-          )
-            .bind(parkingId, caller.id)
-            .first();
-          if (!isManager) {
-            return jsonResponse({ error: "Forbidden: Not manager of this parking lot" }, 403);
-          }
+        const isManager = await env.DB.prepare(
+          "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+        )
+          .bind(parkingId, caller.id)
+          .first();
+        if (!isManager) {
+          return jsonResponse({ error: "Forbidden: Not manager of this parking lot" }, 403);
         }
 
         const body = (await request.json()) as {
@@ -1441,6 +1436,9 @@ export default {
         if (!caller) {
           return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
         }
+        if (!caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
 
         const cycleId = decodeURIComponent(pathname.replace("/api/cycles/", ""));
         const existing = await env.DB.prepare("SELECT * FROM cycles WHERE id = ?")
@@ -1451,15 +1449,13 @@ export default {
           return jsonResponse({ error: "Cycle not found" }, 404);
         }
 
-        if (!caller.roles.includes("Admin")) {
-          const isManager = await env.DB.prepare(
-            "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
-          )
-            .bind(existing.parking_id, caller.id)
-            .first();
-          if (!isManager) {
-            return jsonResponse({ error: "Forbidden: Not manager of this cycle's parking lot" }, 403);
-          }
+        const isManager = await env.DB.prepare(
+          "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+        )
+          .bind(existing.parking_id, caller.id)
+          .first();
+        if (!isManager) {
+          return jsonResponse({ error: "Forbidden: Not manager of this cycle's parking lot" }, 403);
         }
 
         const body = (await request.json()) as {

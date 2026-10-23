@@ -13,7 +13,7 @@ const client = new BycmeClient(API_BASE);
 
 export default function App() {
   const [view, setView] = useState<"home" | "login" | "app">("home");
-  const [workspaceRole, setWorkspaceRole] = useState<"manager" | "admin">("manager");
+  const [workspaceRole, setWorkspaceRole] = useState<"manager" | "admin" | "rider">("manager");
   const [adminSection, setAdminSection] = useState<"locations" | "requests" | "invitations" | "users">("locations");
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<Person | null>(null);
@@ -46,6 +46,13 @@ export default function App() {
       const user = await client.getMe(token);
       setCurrentUser(user);
       setAuthToken(token);
+      if (user.roles.includes("Admin") && !user.roles.includes("Manager")) {
+        setWorkspaceRole("admin");
+      } else if (user.roles.includes("Manager")) {
+        setWorkspaceRole("manager");
+      } else if (user.roles.includes("Rider")) {
+        setWorkspaceRole("rider");
+      }
     } catch {
       localStorage.removeItem("bycme-token");
       setCurrentUser(null);
@@ -82,6 +89,13 @@ export default function App() {
     localStorage.setItem("bycme-token", token);
     setAuthToken(token);
     setCurrentUser(user);
+    if (user.roles.includes("Admin") && !user.roles.includes("Manager")) {
+      setWorkspaceRole("admin");
+    } else if (user.roles.includes("Manager")) {
+      setWorkspaceRole("manager");
+    } else if (user.roles.includes("Rider")) {
+      setWorkspaceRole("rider");
+    }
     setView("app");
   };
 
@@ -252,7 +266,7 @@ export default function App() {
                     flexWrap: "wrap",
                   }}
                 >
-                  {(currentUser.roles.includes("Manager") || currentUser.roles.includes("Admin")) && (
+                  {currentUser.roles.includes("Manager") && (
                     <button
                       type="button"
                       className={workspaceRole === "manager" ? "btn-primary" : "btn-secondary"}
@@ -274,19 +288,29 @@ export default function App() {
                     </button>
                   )}
 
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    disabled
-                    style={{ width: "auto", padding: "0.4rem 1.25rem", fontSize: "0.9rem", opacity: 0.5, cursor: "not-allowed" }}
-                  >
-                    🚲 Rider (Upcoming)
-                  </button>
+                  {currentUser.roles.includes("Rider") && (
+                    <button
+                      type="button"
+                      className={workspaceRole === "rider" ? "btn-primary" : "btn-secondary"}
+                      style={{ width: "auto", padding: "0.4rem 1.25rem", fontSize: "0.9rem" }}
+                      onClick={() => setWorkspaceRole("rider")}
+                    >
+                      🚲 Rider Workspace
+                    </button>
+                  )}
                 </div>
               </div>
 
+              {/* Rider Workspace View */}
+              {workspaceRole === "rider" && currentUser.roles.includes("Rider") && (
+                <div className="card" style={{ padding: "2rem", textAlign: "center", color: "var(--text-muted)" }}>
+                  <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>🚲 Rider Workspace</h3>
+                  <p style={{ margin: 0 }}>Rider console and bike reservation features are upcoming.</p>
+                </div>
+              )}
+
               {/* Manager Workspace View */}
-              {workspaceRole === "manager" && (currentUser.roles.includes("Manager") || currentUser.roles.includes("Admin")) && authToken && (
+              {workspaceRole === "manager" && currentUser.roles.includes("Manager") && authToken && (
                 <ManagerWorkspaceView apiClient={client} token={authToken} />
               )}
 
