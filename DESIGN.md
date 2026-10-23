@@ -28,6 +28,16 @@
 * **API Endpoints**:
   * Credential authentication (`/api/auth/login`), profile retrieval (`/api/auth/me`), and user listing (`/api/persons`).
 
+### `fix001`: Fixing Auth Enforcement
+* **Bearer Authentication Gate**:
+  * Enforced Bearer authorization requirement on `/api/persons` and `/api/auth/me`.
+  * Strict 401 Unauthorized for missing/invalid tokens; 403 Forbidden for non-Admin access to person directory.
+* **Session & Login Flow**:
+  * Frontend login card in Junta Cycle styling supporting credential authentication against `/api/auth/login`.
+  * Session token persistence in `localStorage`.
+  * Active user status pill and one-click Logout control in `StatusBar`.
+  * Protected App workspace gating all downstream views behind valid authenticated sessions.
+
 ---
 
 ## 2. Database
@@ -90,5 +100,5 @@
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `feat001` | `GET` | `/api/health` | Health check and heartbeat | None | None | `HealthStatus` |
 | `feat002` | `POST` | `/api/auth/login` | Authenticate credentials; return session token + user profile | None | `LoginRequest` | `LoginResponse` |
-| `feat002` | `GET` | `/api/auth/me` | Return active authenticated user profile & roles | `Authorization: Bearer <token>` | None | `Person` |
-| `feat002` | `GET` | `/api/persons` | List persons and assigned roles | `Authorization` | None | `Person[]` |
+| `feat002, fix001` | `GET` | `/api/auth/me` | Return active authenticated user profile & roles | `Authorization: Bearer <token>` | None | `Person` |
+| `feat002, fix001` | `GET` | `/api/persons` | List persons and assigned roles | `Authorization: Bearer <token>` (Admin) | None | `Person[]` |

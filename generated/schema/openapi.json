@@ -82,7 +82,16 @@
     "/api/persons": {
       "get": {
         "operationId": "Endpoints_listPersons",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "The request has succeeded.",

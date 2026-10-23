@@ -129,6 +129,18 @@ async function getPersonWithRoles(
   };
 }
 
+async function authenticateRequest(
+  request: Request,
+  env: Env
+): Promise<{ id: string; email: string; name: string; roles: string[]; createdAt: string } | null> {
+  const authHeader = request.headers.get("Authorization") || "";
+  const tokenMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!tokenMatch) return null;
+  const userId = await verifySessionToken(tokenMatch[1]);
+  if (!userId) return null;
+  return getPersonWithRoles(env.DB, userId);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -192,27 +204,23 @@ export default {
 
       // Current authenticated user
       if (pathname === "/api/auth/me" && request.method === "GET") {
-        const authHeader = request.headers.get("Authorization") || "";
-        const tokenMatch = authHeader.match(/^Bearer\s+(.+)$/i);
-        if (!tokenMatch) {
-          return jsonResponse({ error: "Missing authorization token" }, 401);
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
         }
-
-        const userId = await verifySessionToken(tokenMatch[1]);
-        if (!userId) {
-          return jsonResponse({ error: "Invalid or expired token" }, 401);
-        }
-
-        const person = await getPersonWithRoles(env.DB, userId);
-        if (!person) {
-          return jsonResponse({ error: "User not found" }, 404);
-        }
-
-        return jsonResponse(person);
+        return jsonResponse(caller);
       }
 
-      // List all persons
+      // List all persons (Admin only)
       if (pathname === "/api/persons" && request.method === "GET") {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Admin")) {
+          return jsonResponse({ error: "Forbidden: Admin role required" }, 403);
+        }
+
         const personsResult = await env.DB.prepare(
           "SELECT id, email, name, created_at as createdAt FROM persons ORDER BY name"
         ).all<{ id: string; email: string; name: string; createdAt: string }>();

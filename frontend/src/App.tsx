@@ -1,18 +1,80 @@
-import { useState } from "react";
-import { BycmeClient } from "../../generated/shared";
+import { useState, useEffect, useCallback } from "react";
+import { BycmeClient, Person } from "../../generated/shared";
 import { StatusBar } from "./components/StatusBar";
+import { LoginForm } from "./components/LoginForm";
 
 const API_BASE = "https://bycme-staging.bycme-backend.workers.dev";
 const client = new BycmeClient(API_BASE);
 
 export default function App() {
-  const [view, setView] = useState<"home" | "app">("home");
+  const [view, setView] = useState<"home" | "login" | "app">("home");
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<Person | null>(null);
+  const [persons, setPersons] = useState<Person[]>([]);
+  const [loadingPersons, setLoadingPersons] = useState(false);
+
+  const fetchSession = useCallback(async (token: string) => {
+    try {
+      const user = await client.getMe(token);
+      setCurrentUser(user);
+      setAuthToken(token);
+    } catch {
+      localStorage.removeItem("bycme-token");
+      setCurrentUser(null);
+      setAuthToken(null);
+    }
+  }, []);
+
+  const loadPersons = useCallback(async (token: string) => {
+    setLoadingPersons(true);
+    try {
+      const list = await client.listPersons(token);
+      setPersons(list);
+    } catch {
+      setPersons([]);
+    } finally {
+      setLoadingPersons(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem("bycme-token");
+    if (savedToken) {
+      fetchSession(savedToken);
+    }
+  }, [fetchSession]);
+
+  useEffect(() => {
+    if (view === "app" && authToken && currentUser?.roles.includes("Admin")) {
+      loadPersons(authToken);
+    }
+  }, [view, authToken, currentUser, loadPersons]);
+
+  const handleLoginSuccess = (token: string, user: Person) => {
+    localStorage.setItem("bycme-token", token);
+    setAuthToken(token);
+    setCurrentUser(user);
+    setView("app");
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("bycme-token");
+    setAuthToken(null);
+    setCurrentUser(null);
+    setPersons([]);
+    setView("home");
+  };
 
   return (
     <>
-      <StatusBar apiClient={client} onBrandClick={() => setView("home")} />
+      <StatusBar
+        apiClient={client}
+        currentUser={currentUser}
+        onBrandClick={() => setView("home")}
+        onLogout={handleLogout}
+      />
 
-      {view === "home" ? (
+      {view === "home" && (
         <main className="welcome-container">
           <div className="hero-card">
             <div className="logo-icon">🚲</div>
@@ -20,17 +82,56 @@ export default function App() {
             <p className="tagline">
               Community bicycle sharing platform for seamless campus and facility mobility.
             </p>
-            <div className="action-section">
-              <button
-                className="btn-primary"
-                onClick={() => setView("app")}
+
+            {currentUser ? (
+              <div
+                style={{
+                  background: "var(--card-bg-subtle)",
+                  border: "1px solid var(--border-color)",
+                  borderRadius: "0.5rem",
+                  padding: "0.85rem 1rem",
+                  marginBottom: "1.5rem",
+                  width: "100%",
+                }}
               >
-                Proceed to App ➔
-              </button>
+                <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                  Active Session
+                </div>
+                <div style={{ fontWeight: 600, color: "var(--text-main)", margin: "0.2rem 0" }}>
+                  {currentUser.name}
+                </div>
+                <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                  {currentUser.email}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="action-section">
+              {currentUser ? (
+                <button className="btn-primary" onClick={() => setView("app")}>
+                  Open App Workspace ➔
+                </button>
+              ) : (
+                <button className="btn-primary" onClick={() => setView("login")}>
+                  Proceed to App ➔
+                </button>
+              )}
             </div>
           </div>
         </main>
-      ) : (
+      )}
+
+      {view === "login" && (
+        <main className="welcome-container">
+          <LoginForm
+            apiClient={client}
+            onLoginSuccess={handleLoginSuccess}
+            onCancel={() => setView("home")}
+          />
+        </main>
+      )}
+
+      {view === "app" && (
         <main className="app-container">
           <div className="app-nav-header">
             <button className="btn-text" onClick={() => setView("home")}>
@@ -41,12 +142,99 @@ export default function App() {
             </span>
           </div>
 
-          <div className="card">
-            <h2 style={{ marginBottom: "0.5rem" }}>Bycme Application Workspace</h2>
-            <p style={{ color: "var(--text-muted)" }}>
-              Application ready for feature workflows.
-            </p>
-          </div>
+          {!currentUser ? (
+            <div className="card" style={{ textAlign: "center", padding: "2rem" }}>
+              <p style={{ marginBottom: "1rem" }}>
+                Authentication required to access workspace.
+              </p>
+              <button className="btn-primary" onClick={() => setView("login")}>
+                Sign In ➔
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="card">
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "1rem",
+                  }}
+                >
+                  <div>
+                    <h2 style={{ margin: "0 0 0.25rem 0", color: "var(--text-main)" }}>
+                      Hello, {currentUser.name}
+                    </h2>
+                    <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                      {currentUser.email}
+                    </span>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    {currentUser.roles.map((r) => (
+                      <span key={r} className={`badge-role badge-${r}`}>
+                        {r}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {currentUser.roles.includes("Admin") && (
+                <div className="card">
+                  <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>
+                    User Directory (Admin Access)
+                  </h3>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
+                    Listing all persons protected by Bearer token authorization.
+                  </p>
+
+                  {loadingPersons ? (
+                    <p style={{ color: "var(--text-muted)", marginTop: "1rem" }}>
+                      Loading user accounts...
+                    </p>
+                  ) : persons.length === 0 ? (
+                    <p style={{ color: "var(--text-muted)", marginTop: "1rem" }}>
+                      No user accounts found.
+                    </p>
+                  ) : (
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Roles</th>
+                          <th>Registered</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {persons.map((p) => (
+                          <tr key={p.id}>
+                            <td style={{ fontWeight: 600 }}>{p.name}</td>
+                            <td style={{ color: "var(--text-secondary)" }}>{p.email}</td>
+                            <td>
+                              <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
+                                {p.roles.map((r) => (
+                                  <span key={r} className={`badge-role badge-${r}`}>
+                                    {r}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                              {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </main>
       )}
     </>

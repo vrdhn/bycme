@@ -1,14 +1,21 @@
 import { useEffect, useState, useCallback } from "react";
-import { BycmeClient } from "../../../generated/shared";
+import { BycmeClient, Person } from "../../../generated/shared";
 
 type ThemeMode = "system" | "light" | "dark";
 
 interface StatusBarProps {
   apiClient: BycmeClient;
+  currentUser?: Person | null;
   onBrandClick?: () => void;
+  onLogout?: () => void;
 }
 
-export function StatusBar({ apiClient, onBrandClick }: StatusBarProps) {
+export function StatusBar({
+  apiClient,
+  currentUser,
+  onBrandClick,
+  onLogout,
+}: StatusBarProps) {
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
 
@@ -72,6 +79,22 @@ export function StatusBar({ apiClient, onBrandClick }: StatusBarProps) {
         </span>
 
         <div className="status-right">
+          {currentUser && (
+            <div className="user-pill" title={`Signed in as ${currentUser.email}`}>
+              <span>👤</span>
+              <span>{currentUser.name}</span>
+              {currentUser.roles.length > 0 && (
+                <span className="user-role-tag">{currentUser.roles[0]}</span>
+              )}
+            </div>
+          )}
+
+          {currentUser && onLogout && (
+            <button className="btn-logout" onClick={onLogout} title="Log Out">
+              Log Out
+            </button>
+          )}
+
           <button
             className="theme-toggle-btn"
             onClick={cycleTheme}

@@ -57,5 +57,5 @@ namespace Endpoints {
 
   @get
   @route("/persons")
-  op listPersons(): Person[];
+  op listPersons(@header authorization?: string): Person[];
 }

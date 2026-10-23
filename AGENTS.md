@@ -52,3 +52,5 @@
 - Staging Workflow: `./btool staging` executes preflight check, codegen, build, migration, and publish
 - CI Verification: `./btool verify` asserts generated files match TypeSpec contract and detects drift
 - Design Documentation: `DESIGN.md` in repository root must be continuously updated with features/subfeatures, database schema (tables/fields with feature version), and REST API endpoints (with feature version)
+- Authentication Standard: All API endpoints require Bearer token authorization except `/api/health` and `/api/auth/login`
+- Feature Scope Standard: Every feature must be an end-to-end slice encompassing schema migration, seed data, backend update, REST API contract, and frontend UI
