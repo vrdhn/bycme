@@ -1,0 +1,52 @@
+<svg viewBox="0 0 860 300" xmlns="http://www.w3.org/2000/svg" style="font-family:system-ui,-apple-system,sans-serif;">
+  <defs>
+    <marker id="arrow-yellow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#eab308"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#ef4444"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#16a34a"/>
+    </marker>
+  </defs>
+
+  <rect width="860" height="300" fill="#f8fafc" rx="12" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Working State (Green) -->
+  <g transform="translate(60, 90)">
+    <rect width="180" height="100" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2.5"/>
+    <text x="90" y="38" text-anchor="middle" font-size="15" font-weight="800" fill="#15803d">✓ WORKING</text>
+    <text x="90" y="60" text-anchor="middle" font-size="11" fill="#166534">Available to Ride</text>
+    <text x="90" y="78" text-anchor="middle" font-size="10" fill="#475569">Visible in Rider Fleet</text>
+  </g>
+
+  <!-- Transitions to Damaged States -->
+  <path d="M 240 115 L 414 62" fill="none" stroke="#eab308" stroke-width="2" marker-end="url(#arrow-yellow)"/>
+  <text x="330" y="75" text-anchor="middle" font-size="9" font-weight="700" fill="#854d0e">Rider returns with 'Puncture'</text>
+
+  <path d="M 240 165 L 414 218" fill="none" stroke="#ef4444" stroke-width="2" marker-end="url(#arrow-red)"/>
+  <text x="330" y="210" text-anchor="middle" font-size="9" font-weight="700" fill="#991b1b">Rider returns with 'Broken'</text>
+
+  <!-- Puncture State (Yellow) -->
+  <g transform="translate(420, 20)">
+    <rect width="180" height="85" rx="10" fill="#fefce8" stroke="#eab308" stroke-width="2"/>
+    <text x="90" y="34" text-anchor="middle" font-size="14" font-weight="800" fill="#854d0e">⚠️ PUNCTURE</text>
+    <text x="90" y="54" text-anchor="middle" font-size="10" fill="#713f12">Flat tyre detected</text>
+    <text x="90" y="70" text-anchor="middle" font-size="10" font-weight="600" fill="#dc2626">OUT OF SERVICE</text>
+  </g>
+
+  <!-- Broken State (Red) -->
+  <g transform="translate(420, 180)">
+    <rect width="180" height="85" rx="10" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+    <text x="90" y="34" text-anchor="middle" font-size="14" font-weight="800" fill="#991b1b">❌ BROKEN</text>
+    <text x="90" y="54" text-anchor="middle" font-size="10" fill="#7f1d1d">Mechanical failure</text>
+    <text x="90" y="70" text-anchor="middle" font-size="10" font-weight="600" fill="#dc2626">OUT OF SERVICE</text>
+  </g>
+
+  <!-- Manager Repair Return Paths -->
+  <path d="M 600 60 L 720 60 L 720 140 L 246 140" fill="none" stroke="#16a34a" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrow-green)"/>
+  <path d="M 600 220 L 720 220 L 720 140" fill="none" stroke="#16a34a" stroke-width="2" stroke-dasharray="4 3"/>
+  <rect x="650" y="125" width="140" height="30" rx="6" fill="#f0fdf4" stroke="#16a34a"/>
+  <text x="720" y="144" text-anchor="middle" font-size="10" font-weight="700" fill="#15803d">Manager Repairs</text>
+</svg>

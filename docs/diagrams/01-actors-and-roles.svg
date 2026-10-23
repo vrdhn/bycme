@@ -1,0 +1,48 @@
+<svg viewBox="0 0 920 320" xmlns="http://www.w3.org/2000/svg" style="font-family:system-ui,-apple-system,sans-serif;">
+  <rect width="920" height="320" fill="#f8fafc" rx="12" stroke="#e2e8f0" stroke-width="1.5"/>
+  
+  <!-- System Administrator -->
+  <g transform="translate(30, 30)">
+    <rect width="260" height="260" rx="10" fill="#ffffff" stroke="#6366f1" stroke-width="2"/>
+    <rect width="260" height="42" rx="10" fill="#6366f1"/>
+    <text x="130" y="27" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">🛡️ SYSTEM ADMINISTRATOR</text>
+    <text x="20" y="70" font-size="12" font-weight="600" fill="#4338ca">Primary Capabilities:</text>
+    <text x="25" y="95" font-size="11" fill="#475569">• Full Location Hierarchy (City/Bldg/Park)</text>
+    <text x="25" y="118" font-size="11" fill="#475569">• Generate Manager Invitations</text>
+    <text x="25" y="141" font-size="11" fill="#475569">• Review &amp; Approve Manager Requests</text>
+    <text x="25" y="164" font-size="11" fill="#475569">• View All Platform Users &amp; Roles</text>
+    <text x="25" y="187" font-size="11" fill="#475569">• Revoke Global Invitations</text>
+    <rect x="20" y="220" width="220" height="28" rx="6" fill="#eef2ff" stroke="#c7d2fe"/>
+    <text x="130" y="238" text-anchor="middle" fill="#4f46e5" font-size="11" font-weight="600">Workspace: 🛡️ Admin Console</text>
+  </g>
+
+  <!-- Parking Manager -->
+  <g transform="translate(330, 30)">
+    <rect width="260" height="260" rx="10" fill="#ffffff" stroke="#0d9488" stroke-width="2"/>
+    <rect width="260" height="42" rx="10" fill="#0d9488"/>
+    <text x="130" y="27" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">🏢 PARKING MANAGER</text>
+    <text x="20" y="70" font-size="12" font-weight="600" fill="#0f766e">Primary Capabilities:</text>
+    <text x="25" y="95" font-size="11" fill="#475569">• Manage Station Bicycles &amp; Fleets</text>
+    <text x="25" y="118" font-size="11" fill="#475569">• Register Cycles &amp; Edit Lock Codes</text>
+    <text x="25" y="141" font-size="11" fill="#475569">• Generate Rider Invitations</text>
+    <text x="25" y="164" font-size="11" fill="#475569">• Approve/Reject Resident Requests</text>
+    <text x="25" y="187" font-size="11" fill="#475569">• Repair Cycles (Puncture/Broken)</text>
+    <rect x="20" y="220" width="220" height="28" rx="6" fill="#f0fdfa" stroke="#99f6e4"/>
+    <text x="130" y="238" text-anchor="middle" fill="#0f766e" font-size="11" font-weight="600">Workspace: 🏢 Manager Workspace</text>
+  </g>
+
+  <!-- Resident Rider -->
+  <g transform="translate(630, 30)">
+    <rect width="260" height="260" rx="10" fill="#ffffff" stroke="#16a34a" stroke-width="2"/>
+    <rect width="260" height="42" rx="10" fill="#16a34a"/>
+    <text x="130" y="27" text-anchor="middle" fill="#ffffff" font-size="14" font-weight="700">🚲 RESIDENT RIDER</text>
+    <text x="20" y="70" font-size="12" font-weight="600" fill="#15803d">Primary Capabilities:</text>
+    <text x="25" y="95" font-size="11" fill="#475569">• Enrolled in 1 Home Parking Stand</text>
+    <text x="25" y="118" font-size="11" fill="#475569">• View Station Fleet Availability</text>
+    <text x="25" y="141" font-size="11" fill="#475569">• Checkout Bicycle (Reveals Lock Code)</text>
+    <text x="25" y="164" font-size="11" fill="#475569">• Strict Limit: At most 1 Active Ride</text>
+    <text x="25" y="187" font-size="11" fill="#475569">• Return Cycle with Damage Report</text>
+    <rect x="20" y="220" width="220" height="28" rx="6" fill="#f0fdf4" stroke="#bbf7d0"/>
+    <text x="130" y="238" text-anchor="middle" fill="#15803d" font-size="11" font-weight="600">Workspace: 🚲 Rider Workspace</text>
+  </g>
+</svg>

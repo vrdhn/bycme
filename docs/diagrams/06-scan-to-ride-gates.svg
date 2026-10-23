@@ -1,0 +1,76 @@
+<svg viewBox="0 0 940 520" xmlns="http://www.w3.org/2000/svg" style="font-family:system-ui,-apple-system,sans-serif;">
+  <rect width="940" height="520" fill="#f8fafc" rx="12" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- Start -->
+  <g transform="translate(30, 230)">
+    <rect width="130" height="50" rx="8" fill="#0d9488"/>
+    <text x="65" y="24" text-anchor="middle" font-size="11" font-weight="700" fill="#ffffff">CAMERA SCAN</text>
+    <text x="65" y="38" text-anchor="middle" font-size="9" fill="#ccfbf1">/#/cycle/&lt;qr_code&gt;</text>
+  </g>
+
+  <!-- Gate 1: Rider Role -->
+  <path d="M 160 255 L 200 255" fill="none" stroke="#64748b" stroke-width="2"/>
+  <g transform="translate(200, 220)">
+    <rect width="115" height="70" rx="6" fill="#ffffff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="57" y="24" text-anchor="middle" font-size="10" font-weight="700" fill="#4338ca">GATE 1</text>
+    <text x="57" y="42" text-anchor="middle" font-size="10" fill="#334155">Caller holds</text>
+    <text x="57" y="56" text-anchor="middle" font-size="10" font-weight="600" fill="#4338ca">Rider Role?</text>
+  </g>
+  <path d="M 257 220 L 257 150 L 320 150" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="325" y="153" font-size="9" fill="#dc2626">FAIL: Show Join Invitation Prompt</text>
+
+  <!-- Gate 2: Home Stand Match -->
+  <path d="M 315 255 L 350 255" fill="none" stroke="#64748b" stroke-width="2"/>
+  <g transform="translate(350, 220)">
+    <rect width="115" height="70" rx="6" fill="#ffffff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="57" y="24" text-anchor="middle" font-size="10" font-weight="700" fill="#4338ca">GATE 2</text>
+    <text x="57" y="42" text-anchor="middle" font-size="10" fill="#334155">Belongs to</text>
+    <text x="57" y="56" text-anchor="middle" font-size="10" font-weight="600" fill="#4338ca">Home Stand?</text>
+  </g>
+  <path d="M 407 220 L 407 110 L 470 110" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="475" y="113" font-size="9" fill="#dc2626">FAIL: "Cycle belongs to different stand"</text>
+
+  <!-- Gate 3: Working Condition -->
+  <path d="M 465 255 L 500 255" fill="none" stroke="#64748b" stroke-width="2"/>
+  <g transform="translate(500, 220)">
+    <rect width="115" height="70" rx="6" fill="#ffffff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="57" y="24" text-anchor="middle" font-size="10" font-weight="700" fill="#4338ca">GATE 3</text>
+    <text x="57" y="42" text-anchor="middle" font-size="10" fill="#334155">Status ==</text>
+    <text x="57" y="56" text-anchor="middle" font-size="10" font-weight="600" fill="#15803d">'Working'?</text>
+  </g>
+  <path d="M 557 220 L 557 70 L 620 70" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="625" y="73" font-size="9" fill="#dc2626">FAIL: "Cycle out of service (Puncture/Broken)"</text>
+
+  <!-- Gate 4: Not In Use by Other -->
+  <path d="M 615 255 L 650 255" fill="none" stroke="#64748b" stroke-width="2"/>
+  <g transform="translate(650, 220)">
+    <rect width="115" height="70" rx="6" fill="#ffffff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="57" y="24" text-anchor="middle" font-size="10" font-weight="700" fill="#4338ca">GATE 4</text>
+    <text x="57" y="42" text-anchor="middle" font-size="10" fill="#334155">Cycle Not in</text>
+    <text x="57" y="56" text-anchor="middle" font-size="10" font-weight="600" fill="#4338ca">Active Use?</text>
+  </g>
+  <path d="M 707 220 L 707 30 L 770 30" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="775" y="33" font-size="9" fill="#dc2626">FAIL: "In use by another resident"</text>
+
+  <!-- Gate 5: Caller Zero Active Rides -->
+  <path d="M 765 255 L 800 255" fill="none" stroke="#64748b" stroke-width="2"/>
+  <g transform="translate(800, 220)">
+    <rect width="115" height="70" rx="6" fill="#ffffff" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="57" y="24" text-anchor="middle" font-size="10" font-weight="700" fill="#4338ca">GATE 5</text>
+    <text x="57" y="42" text-anchor="middle" font-size="10" fill="#334155">Caller Has 0</text>
+    <text x="57" y="56" text-anchor="middle" font-size="10" font-weight="600" fill="#4338ca">Active Rides?</text>
+  </g>
+  <path d="M 857 290 L 857 360 L 700 360" fill="none" stroke="#ef4444" stroke-width="1.5"/>
+  <text x="500" y="364" font-size="9" fill="#dc2626">FAIL: "You already have an active checkout (Limit 1)"</text>
+
+  <!-- All Gates Pass -> Unlocked Session -->
+  <path d="M 857 220 L 857 190 L 920 190" fill="none" stroke="#16a34a" stroke-width="2"/>
+  
+  <g transform="translate(480, 410)">
+    <rect width="430" height="90" rx="10" fill="#f0fdf4" stroke="#22c55e" stroke-width="2.5"/>
+    <text x="215" y="28" text-anchor="middle" font-size="13" font-weight="800" fill="#15803d">✓ ALL 5 GATES PASSED: CYCLE UNLOCKED</text>
+    <text x="215" y="50" text-anchor="middle" font-size="10" fill="#166534">1. POST /api/cycles/{id}/checkout creates cycle_checkouts record</text>
+    <text x="215" y="68" text-anchor="middle" font-size="11" font-weight="700" fill="#15803d">2. Reveals Combination Lock Code: 🔒 [lock_code]</text>
+  </g>
+  <path d="M 857 220 L 857 180 L 920 180 L 920 455 L 910 455" fill="none" stroke="#16a34a" stroke-width="2"/>
+</svg>
