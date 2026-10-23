@@ -170,6 +170,45 @@ export interface RespondInvitationResponse {
   parkingManager?: ParkingManager;
 }
 
+export type CycleStatus = "Working" | "Puncture" | "Broken";
+
+export interface Cycle {
+  id: string;
+  publicCycleId: string;
+  parkingId: string;
+  brand: string;
+  cycleModel: string;
+  colour: string;
+  status: CycleStatus;
+  lockCode: string;
+  qrCode: string;
+  qrUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  parkingName?: string;
+  cityName?: string;
+}
+
+export interface CreateCycleRequest {
+  publicCycleId: string;
+  brand: string;
+  cycleModel: string;
+  colour: string;
+  status?: CycleStatus;
+  lockCode: string;
+  qrCode?: string;
+}
+
+export interface UpdateCycleRequest {
+  brand?: string;
+  cycleModel?: string;
+  colour?: string;
+  status?: CycleStatus;
+  lockCode?: string;
+  qrCode?: string;
+  parkingId?: string;
+}
+
 export class BycmeClient {
   private baseUrl: string;
 
@@ -406,5 +445,43 @@ export class BycmeClient {
         headers,
       }
     );
+  }
+
+  getMyManagedParkings(token?: string): Promise<Parking[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<Parking[]>("/api/me/parkings", { headers });
+  }
+
+  listParkingCycles(parkingId: string, token?: string): Promise<Cycle[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<Cycle[]>(`/api/parkings/${encodeURIComponent(parkingId)}/cycles`, { headers });
+  }
+
+  createCycle(parkingId: string, body: CreateCycleRequest, token?: string): Promise<Cycle> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<Cycle>(`/api/parkings/${encodeURIComponent(parkingId)}/cycles`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+  }
+
+  updateCycle(id: string, body: UpdateCycleRequest, token?: string): Promise<Cycle> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<Cycle>(`/api/cycles/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(body),
+    });
+  }
+
+  lookupCycle(identifier: string, token?: string): Promise<Cycle> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<Cycle>(`/api/cycles/lookup/${encodeURIComponent(identifier)}`, { headers });
   }
 }

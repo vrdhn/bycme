@@ -5,6 +5,7 @@ import { LoginForm } from "./components/LoginForm";
 import { LocationsAdminView } from "./components/LocationsAdminView";
 import { ManagerRequestsView } from "./components/ManagerRequestsView";
 import { AdminInvitationsView } from "./components/AdminInvitationsView";
+import { ManagerWorkspaceView } from "./components/ManagerWorkspaceView";
 import { InvitationLanding } from "./components/InvitationLanding";
 
 const API_BASE = "https://bycme-staging.bycme-backend.workers.dev";
@@ -12,6 +13,7 @@ const client = new BycmeClient(API_BASE);
 
 export default function App() {
   const [view, setView] = useState<"home" | "login" | "app">("home");
+  const [workspaceRole, setWorkspaceRole] = useState<"manager" | "admin">("manager");
   const [adminSection, setAdminSection] = useState<"locations" | "requests" | "invitations" | "users">("locations");
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<Person | null>(null);
@@ -238,10 +240,58 @@ export default function App() {
                     ))}
                   </div>
                 </div>
+
+                {/* Top-Level Workspace Selector */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "0.5rem",
+                    marginTop: "1.25rem",
+                    borderTop: "1px solid var(--border-color)",
+                    paddingTop: "1rem",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {(currentUser.roles.includes("Manager") || currentUser.roles.includes("Admin")) && (
+                    <button
+                      type="button"
+                      className={workspaceRole === "manager" ? "btn-primary" : "btn-secondary"}
+                      style={{ width: "auto", padding: "0.4rem 1.25rem", fontSize: "0.9rem" }}
+                      onClick={() => setWorkspaceRole("manager")}
+                    >
+                      👔 Manager Workspace
+                    </button>
+                  )}
+
+                  {currentUser.roles.includes("Admin") && (
+                    <button
+                      type="button"
+                      className={workspaceRole === "admin" ? "btn-primary" : "btn-secondary"}
+                      style={{ width: "auto", padding: "0.4rem 1.25rem", fontSize: "0.9rem" }}
+                      onClick={() => setWorkspaceRole("admin")}
+                    >
+                      🛡️ Admin Console
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    disabled
+                    style={{ width: "auto", padding: "0.4rem 1.25rem", fontSize: "0.9rem", opacity: 0.5, cursor: "not-allowed" }}
+                  >
+                    🚲 Rider (Upcoming)
+                  </button>
+                </div>
               </div>
 
+              {/* Manager Workspace View */}
+              {workspaceRole === "manager" && (currentUser.roles.includes("Manager") || currentUser.roles.includes("Admin")) && authToken && (
+                <ManagerWorkspaceView apiClient={client} token={authToken} />
+              )}
+
               {/* Admin Navigation Controls */}
-              {currentUser.roles.includes("Admin") && (
+              {workspaceRole === "admin" && currentUser.roles.includes("Admin") && (
                 <>
                   <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                     <button

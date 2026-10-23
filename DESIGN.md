@@ -102,6 +102,19 @@
   * `GET /api/admin/invitations`: Lists invitations across all stations with joined location data.
   * `POST /api/admin/invitations/{id}/revoke`: Immediately marks invitation as `revoked`.
 
+### `feat006`: Manager Workspace & Cycle Inventory Management
+* **Workspace Role Navigation**:
+  * Top-level role workspace selector in `/app`: `👔 Manager Workspace` (for Manager and Admin roles) and `🛡️ Admin Console` (for Admin role).
+* **Cycle Inventory & Operational State (Junta Cycle Standard)**:
+  * Cycles cataloged by immutable public identifier (`public_cycle_id`, e.g. `ABC-001`), manufacturer brand (`company`), model, frame colour, and condition (`Working`, `Puncture`, `Broken`).
+  * Physical combination lock code (`lock_code`) openly displayed and editable by Manager.
+* **Uniform Compact QR Token & URL**:
+  * Scannable QR code token (`qr_code`) formatted as compact 22-character base64url UUID token, editable and regenerable by Manager.
+  * Standardized compact cycle URL scheme: `https://bycme-staging.pages.dev/#/cycle/<qr_code>`.
+* **Dock Utilization & Fleet Monitoring**:
+  * Active station dock utilization indicator (current cycle count vs maximum parking capacity).
+  * Real-time search across public IDs, brands, models, frame colors, and lock codes.
+
 ---
 
 ## 2. Database
@@ -219,6 +232,26 @@
   * `idx_parking_managers_person` on `parking_managers(person_id)` (`feat005`)
   * `idx_parking_managers_parking` on `parking_managers(parking_id)` (`feat005`)
 
+#### Table: `cycles`
+| Column | Type | Constraints | Description | Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | Unique cycle internal UUID | `feat006` |
+| `public_cycle_id` | `TEXT` | `UNIQUE NOT NULL COLLATE NOCASE` | Display identifier (e.g. `ABC-001`) | `feat006` |
+| `parking_id` | `TEXT` | `NOT NULL REFERENCES parkings(id) ON DELETE RESTRICT` | Stationed parking stand foreign key | `feat006` |
+| `company` | `TEXT` | `NOT NULL` | Brand / manufacturer | `feat006` |
+| `model` | `TEXT` | `NOT NULL` | Bicycle model name | `feat006` |
+| `colour` | `TEXT` | `NOT NULL` | Frame colour visual tag | `feat006` |
+| `status` | `TEXT` | `NOT NULL DEFAULT 'Working' CHECK (status IN ('Working', 'Puncture', 'Broken'))` | Condition status | `feat006` |
+| `lock_code` | `TEXT` | `NOT NULL` | Open mechanical combination code | `feat006` |
+| `qr_code` | `TEXT` | `UNIQUE NOT NULL` | Compact 22-char base64url scannable token | `feat006` |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Registration timestamp | `feat006` |
+| `updated_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Modification timestamp | `feat006` |
+
+* **Indexes**:
+  * `idx_cycles_public_id` on `cycles(public_cycle_id)` (`feat006`)
+  * `idx_cycles_parking_id` on `cycles(parking_id)` (`feat006`)
+  * `idx_cycles_qr_code` on `cycles(qr_code)` (`feat006`)
+
 ### Migrations
 | Migration | Description | Feature |
 | :--- | :--- | :--- |
@@ -227,6 +260,7 @@
 | `sqlsource/migrations/0003_invitations.sql` | Invitations table for managers and riders with expiry | `feat004` |
 | `sqlsource/migrations/0004_invitation_preapproved.sql` | Pre-approved single-use flag on invitations | `fix002` |
 | `sqlsource/migrations/0005_managers.sql` | Manager requests and parking managers rosters | `feat005` |
+| `sqlsource/migrations/0006_cycles.sql` | Cycles table for bicycle inventory management | `feat006` |
 
 ### Seed Files
 | Seed File | Description | Feature |
@@ -235,6 +269,7 @@
 | `sqlsource/seeds/seed-002-locations.sql` | Baseline Indian cities, buildings, and parking stands | `feat003` |
 | `sqlsource/seeds/seed-003-invitations.sql` | Active sample parking manager invitation | `feat004, fix002` |
 | `sqlsource/seeds/seed-004-managers.sql` | Sample applicant user and initial pending manager request | `feat005` |
+| `sqlsource/seeds/seed-005-cycles.sql` | Baseline fleet stationed at `prk-tm-tower-a` | `feat006` |
 
 ---
 
@@ -268,6 +303,10 @@
 * `ManagerRequest`: `{ id: string, parkingId: string, personId: string, invitationId?: string, status: ManagerRequestStatus, createdAt: string, updatedAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string }` (`feat005`)
 * `ParkingManager`: `{ id: string, parkingId: string, personId: string, assignedBy?: string, createdAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string }` (`feat005`)
 * `RespondInvitationResponse`: `{ action: string, status: string, message: string, request?: ManagerRequest, parkingManager?: ParkingManager }` (`feat005`)
+* `CycleStatus`: `"Working" | "Puncture" | "Broken"` (`feat006`)
+* `Cycle`: `{ id: string, publicCycleId: string, parkingId: string, brand: string, cycleModel: string, colour: string, status: CycleStatus, lockCode: string, qrCode: string, qrUrl: string, createdAt: string, updatedAt: string, parkingName?: string, cityName?: string }` (`feat006`)
+* `CreateCycleRequest`: `{ publicCycleId: string, brand: string, cycleModel: string, colour: string, status?: CycleStatus, lockCode: string, qrCode?: string }` (`feat006`)
+* `UpdateCycleRequest`: `{ brand?: string, cycleModel?: string, colour?: string, status?: CycleStatus, lockCode?: string, qrCode?: string, parkingId?: string }` (`feat006`)
 
 ### Endpoints Table
 
@@ -297,3 +336,8 @@
 | `feat005` | `POST` | `/api/admin/manager-requests/{id}/reject` | Reject manager request | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
 | `fix003` | `GET` | `/api/admin/invitations` | List invitations across all parking stations with joined details | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |
 | `fix003` | `POST` | `/api/admin/invitations/{id}/revoke` | Revoke / expire invitation link immediately | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation` |
+| `feat006` | `GET` | `/api/me/parkings` | List parking stations managed by caller | `Authorization: Bearer <token>` (Manager/Admin) | None | `Parking[]` |
+| `feat006` | `GET` | `/api/parkings/{id}/cycles` | List cycles stationed at parking stand | `Authorization: Bearer <token>` (Manager/Admin) | None | `Cycle[]` |
+| `feat006` | `POST` | `/api/parkings/{id}/cycles` | Register new cycle to parking stand | `Authorization: Bearer <token>` (Manager/Admin) | `CreateCycleRequest` | `Cycle` |
+| `feat006` | `PUT` | `/api/cycles/{id}` | Update cycle condition, lock code, QR code, or metadata | `Authorization: Bearer <token>` (Manager/Admin) | `UpdateCycleRequest` | `Cycle` |
+| `feat006` | `GET` | `/api/cycles/lookup/{identifier}` | Search cycle by publicCycleId or qr_code | `Authorization: Bearer <token>` (Manager/Admin) | None | `Cycle` |

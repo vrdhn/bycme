@@ -192,6 +192,49 @@ model RespondInvitationResponse {
   parkingManager?: ParkingManager;
 }
 
+enum CycleStatus {
+  Working: "Working",
+  Puncture: "Puncture",
+  Broken: "Broken",
+}
+
+model Cycle {
+  id: string;
+  publicCycleId: string;
+  parkingId: string;
+  brand: string;
+  cycleModel: string;
+  colour: string;
+  status: CycleStatus;
+  lockCode: string;
+  qrCode: string;
+  qrUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  parkingName?: string;
+  cityName?: string;
+}
+
+model CreateCycleRequest {
+  publicCycleId: string;
+  brand: string;
+  cycleModel: string;
+  colour: string;
+  status?: CycleStatus;
+  lockCode: string;
+  qrCode?: string;
+}
+
+model UpdateCycleRequest {
+  brand?: string;
+  cycleModel?: string;
+  colour?: string;
+  status?: CycleStatus;
+  lockCode?: string;
+  qrCode?: string;
+  parkingId?: string;
+}
+
 @route("/api")
 namespace Endpoints {
   @get
@@ -311,4 +354,38 @@ namespace Endpoints {
     @path id: string,
     @header authorization?: string
   ): ManagerInvitation;
+
+  @get
+  @route("/me/parkings")
+  op getMyManagedParkings(@header authorization?: string): Parking[];
+
+  @get
+  @route("/parkings/{id}/cycles")
+  op listParkingCycles(
+    @path id: string,
+    @header authorization?: string
+  ): Cycle[];
+
+  @post
+  @route("/parkings/{id}/cycles")
+  op createCycle(
+    @path id: string,
+    @body body: CreateCycleRequest,
+    @header authorization?: string
+  ): Cycle;
+
+  @put
+  @route("/cycles/{id}")
+  op updateCycle(
+    @path id: string,
+    @body body: UpdateCycleRequest,
+    @header authorization?: string
+  ): Cycle;
+
+  @get
+  @route("/cycles/lookup/{identifier}")
+  op lookupCycle(
+    @path identifier: string,
+    @header authorization?: string
+  ): Cycle;
 }

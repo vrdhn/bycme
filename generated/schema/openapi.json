@@ -492,6 +492,86 @@
         }
       }
     },
+    "/api/cycles/lookup/{identifier}": {
+      "get": {
+        "operationId": "Endpoints_lookupCycle",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cycle"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cycles/{id}": {
+      "put": {
+        "operationId": "Endpoints_updateCycle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cycle"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCycleRequest"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "operationId": "Endpoints_getHealth",
@@ -594,6 +674,36 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/ManagerRequest"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/parkings": {
+      "get": {
+        "operationId": "Endpoints_getMyManagedParkings",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Parking"
                   }
                 }
               }
@@ -715,6 +825,87 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateParkingRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/parkings/{id}/cycles": {
+      "get": {
+        "operationId": "Endpoints_listParkingCycles",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Cycle"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "Endpoints_createCycle",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cycle"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCycleRequest"
               }
             }
           }
@@ -929,6 +1120,39 @@
           }
         }
       },
+      "CreateCycleRequest": {
+        "type": "object",
+        "required": [
+          "publicCycleId",
+          "brand",
+          "cycleModel",
+          "colour",
+          "lockCode"
+        ],
+        "properties": {
+          "publicCycleId": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "cycleModel": {
+            "type": "string"
+          },
+          "colour": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CycleStatus"
+          },
+          "lockCode": {
+            "type": "string"
+          },
+          "qrCode": {
+            "type": "string"
+          }
+        }
+      },
       "CreateManagerInvitationRequest": {
         "type": "object",
         "properties": {
@@ -960,6 +1184,75 @@
             "format": "int32"
           }
         }
+      },
+      "Cycle": {
+        "type": "object",
+        "required": [
+          "id",
+          "publicCycleId",
+          "parkingId",
+          "brand",
+          "cycleModel",
+          "colour",
+          "status",
+          "lockCode",
+          "qrCode",
+          "qrUrl",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "publicCycleId": {
+            "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "cycleModel": {
+            "type": "string"
+          },
+          "colour": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CycleStatus"
+          },
+          "lockCode": {
+            "type": "string"
+          },
+          "qrCode": {
+            "type": "string"
+          },
+          "qrUrl": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "parkingName": {
+            "type": "string"
+          },
+          "cityName": {
+            "type": "string"
+          }
+        }
+      },
+      "CycleStatus": {
+        "type": "string",
+        "enum": [
+          "Working",
+          "Puncture",
+          "Broken"
+        ]
       },
       "HealthStatus": {
         "type": "object",
@@ -1347,6 +1640,32 @@
             "type": "string"
           },
           "state": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateCycleRequest": {
+        "type": "object",
+        "properties": {
+          "brand": {
+            "type": "string"
+          },
+          "cycleModel": {
+            "type": "string"
+          },
+          "colour": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CycleStatus"
+          },
+          "lockCode": {
+            "type": "string"
+          },
+          "qrCode": {
+            "type": "string"
+          },
+          "parkingId": {
             "type": "string"
           }
         }

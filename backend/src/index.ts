@@ -104,6 +104,42 @@ function formatManagerInvitation(
   };
 }
 
+function formatCycle(
+  row: {
+    id: string;
+    public_cycle_id: string;
+    parking_id: string;
+    company: string;
+    model: string;
+    colour: string;
+    status: string;
+    lock_code: string;
+    qr_code: string;
+    created_at: string;
+    updated_at: string;
+    parking_name?: string;
+    city_name?: string;
+  },
+  frontendBase: string = "https://bycme-staging.pages.dev"
+) {
+  return {
+    id: row.id,
+    publicCycleId: row.public_cycle_id,
+    parkingId: row.parking_id,
+    brand: row.company,
+    cycleModel: row.model,
+    colour: row.colour,
+    status: row.status,
+    lockCode: row.lock_code,
+    qrCode: row.qr_code,
+    qrUrl: `${frontendBase}/#/cycle/${row.qr_code}`,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    parkingName: row.parking_name,
+    cityName: row.city_name,
+  };
+}
+
 async function verifyPassword(
   password: string,
   saltHex: string,
@@ -1215,6 +1251,304 @@ export default {
           .first<any>();
 
         return jsonResponse(updated);
+      }
+
+      // Manager: Get managed parking stands
+      if (pathname === "/api/me/parkings" && request.method === "GET") {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+
+        let sql =
+          "SELECT p.id, p.building_id as buildingId, p.name, p.capacity, p.created_at as createdAt, " +
+          "b.name as buildingName, c.name as cityName " +
+          "FROM parkings p " +
+          "LEFT JOIN buildings b ON p.building_id = b.id " +
+          "LEFT JOIN cities c ON b.city_id = c.id ";
+
+        // Admins see all parkings, Managers see assigned parkings
+        if (caller.roles.includes("Admin")) {
+          sql += "ORDER BY p.name";
+          const res = await env.DB.prepare(sql).all();
+          return jsonResponse(res.results || []);
+        } else if (caller.roles.includes("Manager")) {
+          sql +=
+            "INNER JOIN parking_managers pm ON pm.parking_id = p.id " +
+            "WHERE pm.person_id = ? " +
+            "ORDER BY p.name";
+          const res = await env.DB.prepare(sql).bind(caller.id).all();
+          return jsonResponse(res.results || []);
+        } else {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
+      }
+
+      // List cycles at a parking lot
+      if (
+        pathname.startsWith("/api/parkings/") &&
+        pathname.endsWith("/cycles") &&
+        request.method === "GET"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+
+        const parkingId = decodeURIComponent(
+          pathname.replace("/api/parkings/", "").replace("/cycles", "")
+        );
+
+        if (!caller.roles.includes("Admin")) {
+          const isManager = await env.DB.prepare(
+            "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+          )
+            .bind(parkingId, caller.id)
+            .first();
+          if (!isManager) {
+            return jsonResponse({ error: "Forbidden: Not manager of this parking lot" }, 403);
+          }
+        }
+
+        const res = await env.DB.prepare(
+          "SELECT c.id, c.public_cycle_id, c.parking_id, c.company, c.model, c.colour, c.status, " +
+            "c.lock_code, c.qr_code, c.created_at, c.updated_at, " +
+            "p.name as parking_name, ci.name as city_name " +
+            "FROM cycles c " +
+            "LEFT JOIN parkings p ON c.parking_id = p.id " +
+            "LEFT JOIN buildings b ON p.building_id = b.id " +
+            "LEFT JOIN cities ci ON b.city_id = ci.id " +
+            "WHERE c.parking_id = ? " +
+            "ORDER BY c.public_cycle_id"
+        )
+          .bind(parkingId)
+          .all<any>();
+
+        const formatted = (res.results || []).map((row) =>
+          formatCycle(row, "https://bycme-staging.pages.dev")
+        );
+        return jsonResponse(formatted);
+      }
+
+      // Add new cycle to a parking lot
+      if (
+        pathname.startsWith("/api/parkings/") &&
+        pathname.endsWith("/cycles") &&
+        request.method === "POST"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+
+        const parkingId = decodeURIComponent(
+          pathname.replace("/api/parkings/", "").replace("/cycles", "")
+        );
+
+        if (!caller.roles.includes("Admin")) {
+          const isManager = await env.DB.prepare(
+            "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+          )
+            .bind(parkingId, caller.id)
+            .first();
+          if (!isManager) {
+            return jsonResponse({ error: "Forbidden: Not manager of this parking lot" }, 403);
+          }
+        }
+
+        const body = (await request.json()) as {
+          publicCycleId?: string;
+          brand?: string;
+          cycleModel?: string;
+          colour?: string;
+          status?: string;
+          lockCode?: string;
+          qrCode?: string;
+        };
+
+        if (
+          !body.publicCycleId ||
+          !body.brand ||
+          !body.cycleModel ||
+          !body.colour ||
+          !body.lockCode
+        ) {
+          return jsonResponse(
+            { error: "publicCycleId, brand, cycleModel, colour, and lockCode are required" },
+            400
+          );
+        }
+
+        const publicId = body.publicCycleId.trim().toUpperCase();
+
+        const existingId = await env.DB.prepare(
+          "SELECT id FROM cycles WHERE LOWER(public_cycle_id) = LOWER(?)"
+        )
+          .bind(publicId)
+          .first();
+        if (existingId) {
+          return jsonResponse({ error: `Cycle with ID '${publicId}' already exists` }, 400);
+        }
+
+        const qrCode = body.qrCode?.trim() || generateCompactToken();
+        const existingQr = await env.DB.prepare("SELECT id FROM cycles WHERE qr_code = ?")
+          .bind(qrCode)
+          .first();
+        if (existingQr) {
+          return jsonResponse({ error: "Cycle with this QR code already exists" }, 400);
+        }
+
+        const id = `cyc-${crypto.randomUUID().slice(0, 8)}`;
+        const status =
+          body.status === "Puncture" || body.status === "Broken" ? body.status : "Working";
+
+        await env.DB.prepare(
+          "INSERT INTO cycles (id, public_cycle_id, parking_id, company, model, colour, status, lock_code, qr_code) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+          .bind(
+            id,
+            publicId,
+            parkingId,
+            body.brand.trim(),
+            body.cycleModel.trim(),
+            body.colour.trim(),
+            status,
+            body.lockCode.trim(),
+            qrCode
+          )
+          .run();
+
+        const created = await env.DB.prepare(
+          "SELECT c.id, c.public_cycle_id, c.parking_id, c.company, c.model, c.colour, c.status, " +
+            "c.lock_code, c.qr_code, c.created_at, c.updated_at, " +
+            "p.name as parking_name, ci.name as city_name " +
+            "FROM cycles c " +
+            "LEFT JOIN parkings p ON c.parking_id = p.id " +
+            "LEFT JOIN buildings b ON p.building_id = b.id " +
+            "LEFT JOIN cities ci ON b.city_id = ci.id " +
+            "WHERE c.id = ?"
+        )
+          .bind(id)
+          .first<any>();
+
+        return jsonResponse(formatCycle(created, "https://bycme-staging.pages.dev"), 201);
+      }
+
+      // Update cycle details
+      if (pathname.startsWith("/api/cycles/") && !pathname.includes("/lookup/") && request.method === "PUT") {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+
+        const cycleId = decodeURIComponent(pathname.replace("/api/cycles/", ""));
+        const existing = await env.DB.prepare("SELECT * FROM cycles WHERE id = ?")
+          .bind(cycleId)
+          .first<any>();
+
+        if (!existing) {
+          return jsonResponse({ error: "Cycle not found" }, 404);
+        }
+
+        if (!caller.roles.includes("Admin")) {
+          const isManager = await env.DB.prepare(
+            "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+          )
+            .bind(existing.parking_id, caller.id)
+            .first();
+          if (!isManager) {
+            return jsonResponse({ error: "Forbidden: Not manager of this cycle's parking lot" }, 403);
+          }
+        }
+
+        const body = (await request.json()) as {
+          brand?: string;
+          cycleModel?: string;
+          colour?: string;
+          status?: string;
+          lockCode?: string;
+          qrCode?: string;
+          parkingId?: string;
+        };
+
+        const newCompany = body.brand !== undefined ? body.brand.trim() : existing.company;
+        const newModel = body.cycleModel !== undefined ? body.cycleModel.trim() : existing.model;
+        const newColour = body.colour !== undefined ? body.colour.trim() : existing.colour;
+        const newStatus =
+          body.status === "Working" || body.status === "Puncture" || body.status === "Broken"
+            ? body.status
+            : existing.status;
+        const newLockCode = body.lockCode !== undefined ? body.lockCode.trim() : existing.lock_code;
+        const newQrCode = body.qrCode !== undefined ? body.qrCode.trim() : existing.qr_code;
+        const newParkingId = body.parkingId !== undefined ? body.parkingId : existing.parking_id;
+
+        if (newQrCode !== existing.qr_code) {
+          const dupQr = await env.DB.prepare("SELECT id FROM cycles WHERE qr_code = ? AND id != ?")
+            .bind(newQrCode, cycleId)
+            .first();
+          if (dupQr) {
+            return jsonResponse({ error: "Cycle with this QR code already exists" }, 400);
+          }
+        }
+
+        await env.DB.prepare(
+          "UPDATE cycles SET company = ?, model = ?, colour = ?, status = ?, lock_code = ?, qr_code = ?, parking_id = ?, updated_at = datetime('now') WHERE id = ?"
+        )
+          .bind(
+            newCompany,
+            newModel,
+            newColour,
+            newStatus,
+            newLockCode,
+            newQrCode,
+            newParkingId,
+            cycleId
+          )
+          .run();
+
+        const updated = await env.DB.prepare(
+          "SELECT c.id, c.public_cycle_id, c.parking_id, c.company, c.model, c.colour, c.status, " +
+            "c.lock_code, c.qr_code, c.created_at, c.updated_at, " +
+            "p.name as parking_name, ci.name as city_name " +
+            "FROM cycles c " +
+            "LEFT JOIN parkings p ON c.parking_id = p.id " +
+            "LEFT JOIN buildings b ON p.building_id = b.id " +
+            "LEFT JOIN cities ci ON b.city_id = ci.id " +
+            "WHERE c.id = ?"
+        )
+          .bind(cycleId)
+          .first<any>();
+
+        return jsonResponse(formatCycle(updated, "https://bycme-staging.pages.dev"));
+      }
+
+      // Lookup cycle by publicCycleId or qr_code
+      if (pathname.startsWith("/api/cycles/lookup/") && request.method === "GET") {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+
+        const identifier = decodeURIComponent(pathname.replace("/api/cycles/lookup/", ""));
+        const row = await env.DB.prepare(
+          "SELECT c.id, c.public_cycle_id, c.parking_id, c.company, c.model, c.colour, c.status, " +
+            "c.lock_code, c.qr_code, c.created_at, c.updated_at, " +
+            "p.name as parking_name, ci.name as city_name " +
+            "FROM cycles c " +
+            "LEFT JOIN parkings p ON c.parking_id = p.id " +
+            "LEFT JOIN buildings b ON p.building_id = b.id " +
+            "LEFT JOIN cities ci ON b.city_id = ci.id " +
+            "WHERE LOWER(c.public_cycle_id) = LOWER(?) OR c.qr_code = ?"
+        )
+          .bind(identifier, identifier)
+          .first<any>();
+
+        if (!row) {
+          return jsonResponse({ error: "Cycle not found" }, 404);
+        }
+
+        return jsonResponse(formatCycle(row, "https://bycme-staging.pages.dev"));
       }
 
       return jsonResponse({ error: "Not Found" }, 404);
