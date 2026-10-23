@@ -601,6 +601,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -646,6 +654,16 @@
                 "schema": {
                   "$ref": "#/components/schemas/RespondInvitationResponse"
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RespondInvitationRequest"
               }
             }
           }
@@ -704,6 +722,168 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/Parking"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/parkings/{id}/rider-requests": {
+      "get": {
+        "operationId": "Endpoints_listParkingRiderRequests",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RiderRequest"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/parkings/{id}/rider-requests/{requestId}/approve": {
+      "post": {
+        "operationId": "Endpoints_approveParkingRiderRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiderRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/parkings/{id}/rider-requests/{requestId}/reject": {
+      "post": {
+        "operationId": "Endpoints_rejectParkingRiderRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "requestId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RiderRequest"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/parkings/{id}/riders": {
+      "get": {
+        "operationId": "Endpoints_listParkingRiders",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ParkingRider"
                   }
                 }
               }
@@ -986,6 +1166,130 @@
                   "items": {
                     "$ref": "#/components/schemas/ManagerInvitation"
                   }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/parkings/{id}/rider-invitations": {
+      "post": {
+        "operationId": "Endpoints_createRiderInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerInvitation"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateManagerInvitationRequest"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "Endpoints_listRiderInvitations",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ManagerInvitation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/parkings/{id}/rider-invitations/{invitationId}/revoke": {
+      "post": {
+        "operationId": "Endpoints_revokeRiderInvitation",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "invitationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManagerInvitation"
                 }
               }
             }
@@ -1309,6 +1613,15 @@
           },
           "expiresAt": {
             "type": "string"
+          },
+          "currentParkingId": {
+            "type": "string"
+          },
+          "currentParkingName": {
+            "type": "string"
+          },
+          "currentCityName": {
+            "type": "string"
           }
         }
       },
@@ -1539,6 +1852,44 @@
           }
         }
       },
+      "ParkingRider": {
+        "type": "object",
+        "required": [
+          "id",
+          "parkingId",
+          "personId",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "assignedBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "parkingName": {
+            "type": "string"
+          },
+          "cityName": {
+            "type": "string"
+          },
+          "personName": {
+            "type": "string"
+          },
+          "personEmail": {
+            "type": "string"
+          }
+        }
+      },
       "Person": {
         "type": "object",
         "required": [
@@ -1596,6 +1947,14 @@
           }
         }
       },
+      "RespondInvitationRequest": {
+        "type": "object",
+        "properties": {
+          "confirmSwitch": {
+            "type": "boolean"
+          }
+        }
+      },
       "RespondInvitationResponse": {
         "type": "object",
         "required": [
@@ -1613,11 +1972,85 @@
           "message": {
             "type": "string"
           },
+          "currentParkingName": {
+            "type": "string"
+          },
+          "currentCityName": {
+            "type": "string"
+          },
+          "targetParkingName": {
+            "type": "string"
+          },
           "request": {
             "$ref": "#/components/schemas/ManagerRequest"
           },
+          "riderRequest": {
+            "$ref": "#/components/schemas/RiderRequest"
+          },
           "parkingManager": {
             "$ref": "#/components/schemas/ParkingManager"
+          },
+          "parkingRider": {
+            "$ref": "#/components/schemas/ParkingRider"
+          }
+        }
+      },
+      "RiderRequest": {
+        "type": "object",
+        "required": [
+          "id",
+          "parkingId",
+          "personId",
+          "isSwitch",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "personId": {
+            "type": "string"
+          },
+          "invitationId": {
+            "type": "string"
+          },
+          "previousParkingId": {
+            "type": "string"
+          },
+          "isSwitch": {
+            "type": "boolean"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ManagerRequestStatus"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "parkingName": {
+            "type": "string"
+          },
+          "cityName": {
+            "type": "string"
+          },
+          "personName": {
+            "type": "string"
+          },
+          "personEmail": {
+            "type": "string"
+          },
+          "previousParkingName": {
+            "type": "string"
+          },
+          "previousCityName": {
+            "type": "string"
           }
         }
       },

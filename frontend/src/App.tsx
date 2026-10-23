@@ -25,6 +25,9 @@ export default function App() {
     if (hash.startsWith("#/join/mgr/")) {
       return hash.replace("#/join/mgr/", "").trim();
     }
+    if (hash.startsWith("#/join/rider/")) {
+      return hash.replace("#/join/rider/", "").trim();
+    }
     return null;
   });
 
@@ -33,6 +36,8 @@ export default function App() {
       const hash = window.location.hash;
       if (hash.startsWith("#/join/mgr/")) {
         setInviteToken(hash.replace("#/join/mgr/", "").trim());
+      } else if (hash.startsWith("#/join/rider/")) {
+        setInviteToken(hash.replace("#/join/rider/", "").trim());
       } else {
         setInviteToken(null);
       }

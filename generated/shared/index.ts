@@ -133,6 +133,9 @@ export interface InvitationDetails {
   cityName?: string;
   createdByName?: string;
   expiresAt: string;
+  currentParkingId?: string;
+  currentParkingName?: string;
+  currentCityName?: string;
 }
 
 export type ManagerRequestStatus = "pending" | "approved" | "rejected";
@@ -151,6 +154,24 @@ export interface ManagerRequest {
   personEmail?: string;
 }
 
+export interface RiderRequest {
+  id: string;
+  parkingId: string;
+  personId: string;
+  invitationId?: string;
+  previousParkingId?: string;
+  isSwitch: boolean;
+  status: ManagerRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+  parkingName?: string;
+  cityName?: string;
+  personName?: string;
+  personEmail?: string;
+  previousParkingName?: string;
+  previousCityName?: string;
+}
+
 export interface ParkingManager {
   id: string;
   parkingId: string;
@@ -163,12 +184,33 @@ export interface ParkingManager {
   personEmail?: string;
 }
 
+export interface ParkingRider {
+  id: string;
+  parkingId: string;
+  personId: string;
+  assignedBy?: string;
+  createdAt: string;
+  parkingName?: string;
+  cityName?: string;
+  personName?: string;
+  personEmail?: string;
+}
+
+export interface RespondInvitationRequest {
+  confirmSwitch?: boolean;
+}
+
 export interface RespondInvitationResponse {
   action: string;
   status: string;
   message: string;
+  currentParkingName?: string;
+  currentCityName?: string;
+  targetParkingName?: string;
   request?: ManagerRequest;
+  riderRequest?: RiderRequest;
   parkingManager?: ParkingManager;
+  parkingRider?: ParkingRider;
 }
 
 export type CycleStatus = "Working" | "Puncture" | "Broken";
@@ -377,11 +419,17 @@ export class BycmeClient {
     });
   }
 
-  getInvitation(token: string): Promise<InvitationDetails> {
-    return this.request<InvitationDetails>(`/api/invitations/${encodeURIComponent(token)}`);
+  getInvitation(token: string, authToken?: string): Promise<InvitationDetails> {
+    const headers: Record<string, string> = {};
+    if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+    return this.request<InvitationDetails>(`/api/invitations/${encodeURIComponent(token)}`, { headers });
   }
 
-  respondToInvitation(tokenStr: string, authToken?: string): Promise<RespondInvitationResponse> {
+  respondToInvitation(
+    tokenStr: string,
+    body?: RespondInvitationRequest,
+    authToken?: string
+  ): Promise<RespondInvitationResponse> {
     const headers: Record<string, string> = {};
     if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
     return this.request<RespondInvitationResponse>(
@@ -389,7 +437,100 @@ export class BycmeClient {
       {
         method: "POST",
         headers,
+        body: JSON.stringify(body || {}),
       }
+    );
+  }
+
+  createRiderInvitation(
+    parkingId: string,
+    body: CreateManagerInvitationRequest,
+    token?: string
+  ): Promise<ManagerInvitation> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<ManagerInvitation>(
+      `/api/parkings/${encodeURIComponent(parkingId)}/rider-invitations`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      }
+    );
+  }
+
+  listRiderInvitations(parkingId: string, token?: string): Promise<ManagerInvitation[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<ManagerInvitation[]>(
+      `/api/parkings/${encodeURIComponent(parkingId)}/rider-invitations`,
+      { headers }
+    );
+  }
+
+  revokeRiderInvitation(
+    parkingId: string,
+    invitationId: string,
+    token?: string
+  ): Promise<ManagerInvitation> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<ManagerInvitation>(
+      `/api/parkings/${encodeURIComponent(parkingId)}/rider-invitations/${encodeURIComponent(invitationId)}/revoke`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
+  }
+
+  listParkingRiderRequests(parkingId: string, token?: string): Promise<RiderRequest[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<RiderRequest[]>(
+      `/api/me/parkings/${encodeURIComponent(parkingId)}/rider-requests`,
+      { headers }
+    );
+  }
+
+  approveParkingRiderRequest(
+    parkingId: string,
+    requestId: string,
+    token?: string
+  ): Promise<RiderRequest> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<RiderRequest>(
+      `/api/me/parkings/${encodeURIComponent(parkingId)}/rider-requests/${encodeURIComponent(requestId)}/approve`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
+  }
+
+  rejectParkingRiderRequest(
+    parkingId: string,
+    requestId: string,
+    token?: string
+  ): Promise<RiderRequest> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<RiderRequest>(
+      `/api/me/parkings/${encodeURIComponent(parkingId)}/rider-requests/${encodeURIComponent(requestId)}/reject`,
+      {
+        method: "POST",
+        headers,
+      }
+    );
+  }
+
+  listParkingRiders(parkingId: string, token?: string): Promise<ParkingRider[]> {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    return this.request<ParkingRider[]>(
+      `/api/me/parkings/${encodeURIComponent(parkingId)}/riders`,
+      { headers }
     );
   }
 

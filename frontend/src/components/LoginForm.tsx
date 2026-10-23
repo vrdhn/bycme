@@ -10,7 +10,7 @@ interface LoginFormProps {
 interface SeededAccount {
   name: string;
   email: string;
-  role: "Admin" | "Manager" | "Applicant";
+  role: "Admin" | "Manager" | "Rider" | "Applicant";
   detail: string;
 }
 
@@ -50,6 +50,24 @@ const SEEDED_ACCOUNTS: SeededAccount[] = [
     email: "rahul@bycme.in",
     role: "Manager",
     detail: "Hyderabad • Podium Level Stand",
+  },
+  {
+    name: "Kavita Sharma",
+    email: "kavita@bycme.in",
+    role: "Rider",
+    detail: "Pune • Gate 1 Stand Rider",
+  },
+  {
+    name: "Rahim Khan",
+    email: "rahim@bycme.in",
+    role: "Rider",
+    detail: "Pune • Clubhouse Stand Rider",
+  },
+  {
+    name: "Deepak Patel",
+    email: "deepak@bycme.in",
+    role: "Rider",
+    detail: "Pune • Pending Transfer to Gate 1",
   },
   {
     name: "Rajesh Kumar",

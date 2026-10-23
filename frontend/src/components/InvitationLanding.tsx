@@ -50,7 +50,7 @@ export function InvitationLanding({
     setInviteError(null);
 
     apiClient
-      .getInvitation(token)
+      .getInvitation(token, authToken || undefined)
       .then((data) => {
         if (active) {
           setInvite(data);
@@ -69,7 +69,7 @@ export function InvitationLanding({
     return () => {
       active = false;
     };
-  }, [apiClient, token]);
+  }, [apiClient, token, authToken]);
 
   // Load caller's requests if authenticated
   const loadUserRequests = useCallback(async () => {
@@ -142,14 +142,17 @@ export function InvitationLanding({
   };
 
   // Handle Respond (Claim or Request)
-  const handleRespond = async () => {
+  const handleRespond = async (confirmSwitch: boolean = false) => {
     if (!authToken) return;
     setActionLoading(true);
     setActionError(null);
 
     try {
-      const result = await apiClient.respondToInvitation(token, authToken);
+      const result = await apiClient.respondToInvitation(token, { confirmSwitch }, authToken);
       setActionResult(result);
+      if (result.status === "active") {
+        apiClient.getMe(authToken).then((u) => onAuthSuccess(authToken, u)).catch(() => {});
+      }
       loadUserRequests();
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to process invitation");
@@ -226,10 +229,18 @@ export function InvitationLanding({
                   letterSpacing: "0.05em",
                 }}
               >
-                {invite.isPreapproved ? "⚡ Pre-Approved Invitation" : "📋 Standard Invitation"}
+                {invite.role === "Rider"
+                  ? invite.isPreapproved
+                    ? "⚡ Pre-Approved Rider Pass"
+                    : "📋 Standard Rider Invitation"
+                  : invite.isPreapproved
+                  ? "⚡ Pre-Approved Invitation"
+                  : "📋 Standard Invitation"}
               </span>
               <h2 style={{ margin: "0.5rem 0 0.25rem 0", color: "var(--text-main)", fontSize: "1.3rem" }}>
-                🔑 Manage {invite.parkingName}
+                {invite.role === "Rider" ? "🚲 Join " : "🔑 Manage "}
+                {invite.parkingName}
+                {invite.role === "Rider" ? " as Rider" : ""}
               </h2>
               <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
                 {invite.buildingName || "Building"}
@@ -239,7 +250,10 @@ export function InvitationLanding({
           </div>
 
           <div style={{ fontSize: "0.85rem", color: "var(--text-main)", lineHeight: 1.5 }}>
-            <strong>{invite.createdByName || "Administrator"}</strong> has invited you to oversee bicycle parking operations for this station.
+            <strong>{invite.createdByName || (invite.role === "Rider" ? "Parking Manager" : "Administrator")}</strong>{" "}
+            {invite.role === "Rider"
+              ? "has invited you to access and ride bicycles stationed at this stand."
+              : "has invited you to oversee bicycle parking operations for this station."}
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.5rem" }}>
             Expires: {new Date(invite.expiresAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
@@ -421,7 +435,57 @@ export function InvitationLanding({
 
             {actionError && <div className="alert-error" style={{ marginBottom: "1rem" }}>{actionError}</div>}
 
-            {actionResult ? (
+            {actionResult?.action === "switch_required" ? (
+              <div
+                style={{
+                  background: "#fffbeb",
+                  border: "2px solid #f59e0b",
+                  padding: "1.25rem",
+                  borderRadius: "0.5rem",
+                  marginBottom: "1rem",
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "1rem",
+                    color: "#b45309",
+                    marginBottom: "0.5rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                  }}
+                >
+                  <span>⚠️</span> Parking Shed Transfer Confirmation
+                </div>
+                <p style={{ fontSize: "0.9rem", color: "#78350f", lineHeight: 1.5, margin: "0 0 1rem 0" }}>
+                  You are currently enrolled at <strong>{actionResult.currentParkingName}{actionResult.currentCityName ? ` (${actionResult.currentCityName})` : ""}</strong>.
+                  <br />
+                  Bycme policy permits registration at only <strong>one parking shed</strong> at any time.
+                  Switching will transfer your bicycle access to <strong>{actionResult.targetParkingName || invite.parkingName}</strong> and withdraw your membership from your current shed.
+                </p>
+                <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => handleRespond(true)}
+                    disabled={actionLoading}
+                    style={{ flex: 1, minWidth: "220px" }}
+                  >
+                    {actionLoading ? "Switching..." : "Confirm & Switch Parking Shed ➔"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setActionResult(null)}
+                    disabled={actionLoading}
+                    style={{ flex: 1, minWidth: "180px" }}
+                  >
+                    Cancel / Keep Current Shed
+                  </button>
+                </div>
+              </div>
+            ) : actionResult ? (
               <div
                 style={{
                   background: actionResult.status === "active" ? "#f0fdf4" : "#fefce8",
@@ -434,9 +498,45 @@ export function InvitationLanding({
                 }}
               >
                 <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>
-                  {actionResult.status === "active" ? "✓ Manager Assigned" : "📬 Request Submitted"}
+                  {actionResult.status === "active"
+                    ? invite.role === "Rider"
+                      ? "✓ Rider Access Activated"
+                      : "✓ Manager Assigned"
+                    : "📬 Request Submitted"}
                 </div>
-                <div>{actionResult.message}</div>
+                <div style={{ marginBottom: "1rem" }}>{actionResult.message}</div>
+                {actionResult.status === "active" && (
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={onBackToLanding}
+                    style={{ width: "auto" }}
+                  >
+                    Open Bycme Workspace ➔
+                  </button>
+                )}
+              </div>
+            ) : invite.role === "Rider" && invite.currentParkingId === invite.parkingId ? (
+              <div
+                style={{
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  color: "#166534",
+                  padding: "1rem",
+                  borderRadius: "0.5rem",
+                  fontSize: "0.9rem",
+                  marginBottom: "1rem",
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>
+                  ✓ You are already an authorized rider here
+                </div>
+                <p style={{ margin: "0 0 1rem 0" }}>
+                  You are already registered at {invite.parkingName}.
+                </p>
+                <button type="button" className="btn-primary" onClick={onBackToLanding} style={{ width: "auto" }}>
+                  Open Bycme Workspace ➔
+                </button>
               </div>
             ) : targetParkingRequest ? (
               <div
@@ -457,8 +557,27 @@ export function InvitationLanding({
               </div>
             ) : (
               <div>
+                {invite.role === "Rider" && invite.currentParkingId && (
+                  <div
+                    style={{
+                      background: "#eff6ff",
+                      border: "1px solid #bfdbfe",
+                      color: "#1e40af",
+                      padding: "0.75rem",
+                      borderRadius: "0.375rem",
+                      fontSize: "0.85rem",
+                      marginBottom: "1rem",
+                    }}
+                  >
+                    ℹ️ You are currently assigned to <strong>{invite.currentParkingName}</strong> ({invite.currentCityName}). Joining this stand will request a shed transfer.
+                  </div>
+                )}
                 <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", marginBottom: "1.25rem" }}>
-                  {invite.isPreapproved
+                  {invite.role === "Rider"
+                    ? invite.isPreapproved
+                      ? "This invitation is pre-approved. Claiming will directly activate your Rider access for this bicycle parking stand."
+                      : "Submitting this request will send your access application to the parking stand manager for review."
+                    : invite.isPreapproved
                     ? "This invitation is pre-approved. Claiming will directly activate your Manager role for this parking lot."
                     : "Submitting this request will send your application to the Bycme Admin team for approval."}
                 </p>
@@ -466,11 +585,15 @@ export function InvitationLanding({
                 <button
                   type="button"
                   className="btn-primary"
-                  onClick={handleRespond}
+                  onClick={() => handleRespond(false)}
                   disabled={actionLoading}
                 >
                   {actionLoading
                     ? "Processing..."
+                    : invite.role === "Rider"
+                    ? invite.isPreapproved
+                      ? "Claim Rider Access ➔"
+                      : "Submit Request to Join ➔"
                     : invite.isPreapproved
                     ? "Claim Parking Management ➔"
                     : "Submit Request to Manage ➔"}
@@ -478,8 +601,8 @@ export function InvitationLanding({
               </div>
             )}
 
-            {/* List user's active requests */}
-            {existingRequests.length > 0 && (
+            {/* List user's active manager requests */}
+            {existingRequests.length > 0 && invite.role === "Manager" && (
               <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--border-color)", paddingTop: "1rem" }}>
                 <h4 style={{ margin: "0 0 0.75rem 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
                   Your Management Applications ({existingRequests.length})

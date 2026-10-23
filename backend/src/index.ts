@@ -64,7 +64,8 @@ function formatManagerInvitation(
   explicitHours?: number
 ) {
   const isPreapproved = Boolean(row.is_preapproved);
-  const inviteUrl = `${frontendBase}/#/join/mgr/${row.token}`;
+  const routePrefix = row.role === "Rider" ? "join/rider" : "join/mgr";
+  const inviteUrl = `${frontendBase}/#/${routePrefix}/${row.token}`;
   const hours =
     explicitHours ||
     Math.max(
@@ -74,15 +75,16 @@ function formatManagerInvitation(
   const parkingInfo = row.parking_name
     ? `${row.parking_name}${row.city_name ? ` (${row.city_name})` : ""}`
     : "this parking lot";
-  const inviter = row.created_by_name || "System Admin";
+  const inviter = row.created_by_name || (row.role === "Rider" ? "Parking Manager" : "System Admin");
 
   const accessNote = isPreapproved
     ? `Note: This is a direct pre-approved invitation (single-use) valid for ${hours} hours.`
-    : `Note: This link is valid for ${hours} hours. Submissions require Admin approval.`;
+    : `Note: This link is valid for ${hours} hours. Submissions require approval.`;
 
+  const actionText = row.role === "Rider" ? "ride bicycles at" : "manage";
   const whatsappMessage =
-    `${inviter} is inviting you to manage ${parkingInfo}.\n` +
-    `Click here to create an account and start:\n` +
+    `${inviter} is inviting you to ${actionText} ${parkingInfo}.\n` +
+    `Click here to register and get started:\n` +
     `${inviteUrl}\n\n` +
     accessNote;
 
@@ -815,6 +817,194 @@ export default {
         return jsonResponse(formatted);
       }
 
+      // Parking Rider Invitations (Manager only)
+      if (
+        pathname.startsWith("/api/parkings/") &&
+        pathname.endsWith("/rider-invitations") &&
+        request.method === "POST"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
+
+        const parkingId = decodeURIComponent(
+          pathname.replace("/api/parkings/", "").replace("/rider-invitations", "")
+        );
+
+        const isManager = await env.DB.prepare(
+          "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+        )
+          .bind(parkingId, caller.id)
+          .first();
+
+        if (!isManager) {
+          return jsonResponse({ error: "Forbidden: You are not a manager of this parking stand" }, 403);
+        }
+
+        const body = ((await request.json().catch(() => ({}))) || {}) as {
+          durationHours?: number;
+          isPreapproved?: boolean;
+        };
+
+        const parking = await env.DB.prepare(
+          "SELECT p.id, p.name as parking_name, c.name as city_name, b.building_type " +
+            "FROM parkings p LEFT JOIN buildings b ON p.building_id = b.id LEFT JOIN cities c ON b.city_id = c.id " +
+            "WHERE p.id = ?"
+        )
+          .bind(parkingId)
+          .first<{ id: string; parking_name: string; city_name: string; building_type: string }>();
+
+        if (!parking) {
+          return jsonResponse({ error: "Parking not found" }, 404);
+        }
+
+        if (parking.building_type !== "Private") {
+          return jsonResponse(
+            { error: "Rider invitations can only be created for private residential parkings" },
+            400
+          );
+        }
+
+        const durationHours =
+          typeof body.durationHours === "number" && body.durationHours > 0
+            ? body.durationHours
+            : 24;
+        const isPreapproved = body.isPreapproved ? 1 : 0;
+        const id = `inv-rdr-${crypto.randomUUID().slice(0, 8)}`;
+        const token = generateCompactToken();
+        const expiresAt = new Date(Date.now() + durationHours * 3600 * 1000).toISOString();
+
+        await env.DB.prepare(
+          "INSERT INTO invitations (id, token, parking_id, role, created_by, status, is_preapproved, expires_at) " +
+            "VALUES (?, ?, ?, 'Rider', ?, 'active', ?, ?)"
+        )
+          .bind(id, token, parkingId, caller.id, isPreapproved, expiresAt)
+          .run();
+
+        const invRow = await env.DB.prepare(
+          "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.is_preapproved, i.expires_at, i.created_at, " +
+            "p.name as parking_name, c.name as city_name, u.name as created_by_name " +
+            "FROM invitations i " +
+            "LEFT JOIN parkings p ON i.parking_id = p.id " +
+            "LEFT JOIN buildings b ON p.building_id = b.id " +
+            "LEFT JOIN cities c ON b.city_id = c.id " +
+            "LEFT JOIN persons u ON i.created_by = u.id " +
+            "WHERE i.id = ?"
+        )
+          .bind(id)
+          .first<any>();
+
+        return jsonResponse(
+          formatManagerInvitation(invRow, "https://bycme-staging.pages.dev", durationHours),
+          201
+        );
+      }
+
+      if (
+        pathname.startsWith("/api/parkings/") &&
+        pathname.endsWith("/rider-invitations") &&
+        request.method === "GET"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
+
+        const parkingId = decodeURIComponent(
+          pathname.replace("/api/parkings/", "").replace("/rider-invitations", "")
+        );
+
+        const isManager = await env.DB.prepare(
+          "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+        )
+          .bind(parkingId, caller.id)
+          .first();
+
+        if (!isManager) {
+          return jsonResponse({ error: "Forbidden: You are not a manager of this parking stand" }, 403);
+        }
+
+        const res = await env.DB.prepare(
+          "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.is_preapproved, i.expires_at, i.created_at, " +
+            "p.name as parking_name, c.name as city_name, u.name as created_by_name " +
+            "FROM invitations i " +
+            "LEFT JOIN parkings p ON i.parking_id = p.id " +
+            "LEFT JOIN buildings b ON p.building_id = b.id " +
+            "LEFT JOIN cities c ON b.city_id = c.id " +
+            "LEFT JOIN persons u ON i.created_by = u.id " +
+            "WHERE i.parking_id = ? AND i.role = 'Rider' AND i.status = 'active' AND datetime(i.expires_at) > datetime('now') " +
+            "ORDER BY i.created_at DESC"
+        )
+          .bind(parkingId)
+          .all<any>();
+
+        const formatted = (res.results || []).map((row) =>
+          formatManagerInvitation(row, "https://bycme-staging.pages.dev")
+        );
+        return jsonResponse(formatted);
+      }
+
+      // Manager revoke rider invitation
+      if (
+        pathname.startsWith("/api/parkings/") &&
+        pathname.includes("/rider-invitations/") &&
+        pathname.endsWith("/revoke") &&
+        request.method === "POST"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
+
+        const parts = pathname
+          .replace("/api/parkings/", "")
+          .replace("/revoke", "")
+          .split("/rider-invitations/");
+        const parkingId = decodeURIComponent(parts[0]);
+        const invId = decodeURIComponent(parts[1]);
+
+        const isManager = await env.DB.prepare(
+          "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+        )
+          .bind(parkingId, caller.id)
+          .first();
+
+        if (!isManager) {
+          return jsonResponse({ error: "Forbidden: You are not a manager of this parking stand" }, 403);
+        }
+
+        await env.DB.prepare(
+          "UPDATE invitations SET status = 'revoked' WHERE id = ? AND parking_id = ? AND role = 'Rider'"
+        )
+          .bind(invId, parkingId)
+          .run();
+
+        const invRow = await env.DB.prepare(
+          "SELECT i.id, i.token, i.parking_id, i.role, i.created_by, i.status, i.is_preapproved, i.expires_at, i.created_at, " +
+            "p.name as parking_name, c.name as city_name, u.name as created_by_name " +
+            "FROM invitations i " +
+            "LEFT JOIN parkings p ON i.parking_id = p.id " +
+            "LEFT JOIN buildings b ON p.building_id = b.id " +
+            "LEFT JOIN cities c ON b.city_id = c.id " +
+            "LEFT JOIN persons u ON i.created_by = u.id " +
+            "WHERE i.id = ?"
+        )
+          .bind(invId)
+          .first<any>();
+
+        return jsonResponse(formatManagerInvitation(invRow, "https://bycme-staging.pages.dev"));
+      }
+
       // Public invitation details lookup
       if (
         pathname.startsWith("/api/invitations/") &&
@@ -841,6 +1031,30 @@ export default {
           return jsonResponse({ error: "Invitation not found or has expired" }, 404);
         }
 
+        const caller = await authenticateRequest(request, env);
+        let currentParkingId: string | undefined;
+        let currentParkingName: string | undefined;
+        let currentCityName: string | undefined;
+
+        if (caller) {
+          const currentRider = await env.DB.prepare(
+            "SELECT pr.parking_id, p.name as parking_name, c.name as city_name " +
+              "FROM parking_riders pr " +
+              "JOIN parkings p ON pr.parking_id = p.id " +
+              "JOIN buildings b ON p.building_id = b.id " +
+              "JOIN cities c ON b.city_id = c.id " +
+              "WHERE pr.person_id = ?"
+          )
+            .bind(caller.id)
+            .first<{ parking_id: string; parking_name: string; city_name: string }>();
+
+          if (currentRider) {
+            currentParkingId = currentRider.parking_id;
+            currentParkingName = currentRider.parking_name;
+            currentCityName = currentRider.city_name;
+          }
+        }
+
         return jsonResponse({
           token: row.token,
           role: row.role,
@@ -851,10 +1065,13 @@ export default {
           cityName: row.city_name,
           createdByName: row.created_by_name,
           expiresAt: row.expires_at,
+          currentParkingId,
+          currentParkingName,
+          currentCityName,
         });
       }
 
-      // Respond to manager invitation
+      // Respond to invitation
       if (
         pathname.startsWith("/api/invitations/") &&
         pathname.endsWith("/respond") &&
@@ -887,11 +1104,116 @@ export default {
 
         if (inv.building_type !== "Private") {
           return jsonResponse(
-            { error: "This parking is public and cannot have a manager assigned." },
+            { error: "Invitations are only permitted for private residential parkings." },
             400
           );
         }
 
+        const body = ((await request.json().catch(() => ({}))) || {}) as {
+          confirmSwitch?: boolean;
+        };
+
+        // RIDER INVITATION HANDLING
+        if (inv.role === "Rider") {
+          const currentRider = await env.DB.prepare(
+            "SELECT pr.parking_id, p.name as parking_name, c.name as city_name " +
+              "FROM parking_riders pr " +
+              "JOIN parkings p ON pr.parking_id = p.id " +
+              "JOIN buildings b ON p.building_id = b.id " +
+              "JOIN cities c ON b.city_id = c.id " +
+              "WHERE pr.person_id = ?"
+          )
+            .bind(caller.id)
+            .first<{ parking_id: string; parking_name: string; city_name: string }>();
+
+          if (currentRider && currentRider.parking_id === inv.parking_id) {
+            return jsonResponse({
+              action: "already_exists",
+              status: "active",
+              message: "You are already a registered rider for this parking stand.",
+            });
+          }
+
+          if (currentRider && currentRider.parking_id !== inv.parking_id && !body.confirmSwitch) {
+            return jsonResponse({
+              action: "switch_required",
+              status: "switch_pending",
+              currentParkingName: currentRider.parking_name,
+              currentCityName: currentRider.city_name,
+              targetParkingName: inv.parking_name,
+              message: `You are currently registered at ${currentRider.parking_name} (${currentRider.city_name}). Switching parking sheds will remove your registration there.`,
+            });
+          }
+
+          if (inv.is_preapproved) {
+            // Remove previous parking assignment if switching sheds
+            if (currentRider) {
+              await env.DB.prepare("DELETE FROM parking_riders WHERE person_id = ?")
+                .bind(caller.id)
+                .run();
+            }
+
+            const rdrId = `rdr-${crypto.randomUUID().slice(0, 8)}`;
+            await env.DB.prepare(
+              "INSERT INTO parking_riders (id, parking_id, person_id, assigned_by) VALUES (?, ?, ?, ?)"
+            )
+              .bind(rdrId, inv.parking_id, caller.id, inv.created_by)
+              .run();
+
+            const roleId = `role-${crypto.randomUUID().slice(0, 8)}`;
+            await env.DB.prepare(
+              "INSERT OR IGNORE INTO person_roles (id, person_id, role) VALUES (?, ?, 'Rider')"
+            )
+              .bind(roleId, caller.id)
+              .run();
+
+            await env.DB.prepare("UPDATE invitations SET status = 'used' WHERE id = ?")
+              .bind(inv.id)
+              .run();
+
+            return jsonResponse({
+              action: currentRider ? "switched" : "joined",
+              status: "active",
+              message: currentRider
+                ? `Successfully switched your parking shed to ${inv.parking_name}!`
+                : `Successfully joined ${inv.parking_name} as a rider!`,
+            });
+          }
+
+          // Standard Rider Application
+          const existingReq = await env.DB.prepare(
+            "SELECT id, status FROM rider_requests WHERE parking_id = ? AND person_id = ? AND status = 'pending'"
+          )
+            .bind(inv.parking_id, caller.id)
+            .first<any>();
+
+          if (existingReq) {
+            return jsonResponse({
+              action: "already_requested",
+              status: "pending",
+              message: "Your application is already pending manager approval for this parking stand",
+            });
+          }
+
+          const reqId = `rdr-req-${crypto.randomUUID().slice(0, 8)}`;
+          const prevParkingId = currentRider ? currentRider.parking_id : null;
+          await env.DB.prepare(
+            "INSERT INTO rider_requests (id, parking_id, person_id, invitation_id, previous_parking_id, status) " +
+              "VALUES (?, ?, ?, ?, ?, 'pending')"
+          )
+            .bind(reqId, inv.parking_id, caller.id, inv.id, prevParkingId)
+            .run();
+
+          return jsonResponse({
+            action: "requested",
+            status: "pending",
+            message: currentRider
+              ? `Transfer request to ${inv.parking_name} submitted to manager for approval.`
+              : `Application to ${inv.parking_name} submitted to manager for approval.`,
+          });
+        }
+
+        // MANAGER INVITATION HANDLING
         // Check if caller is already an active manager for this parking
         const existingMgr = await env.DB.prepare(
           "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
@@ -1295,6 +1617,242 @@ export default {
           "ORDER BY p.name";
 
         const res = await env.DB.prepare(sql).bind(caller.id).all();
+        return jsonResponse(res.results || []);
+      }
+
+      // Manager: Get rider requests for managed parking
+      if (
+        pathname.startsWith("/api/me/parkings/") &&
+        pathname.endsWith("/rider-requests") &&
+        request.method === "GET"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
+
+        const parkingId = decodeURIComponent(
+          pathname.replace("/api/me/parkings/", "").replace("/rider-requests", "")
+        );
+
+        const isManager = await env.DB.prepare(
+          "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+        )
+          .bind(parkingId, caller.id)
+          .first();
+
+        if (!isManager) {
+          return jsonResponse({ error: "Forbidden: You are not a manager of this parking stand" }, 403);
+        }
+
+        const res = await env.DB.prepare(
+          "SELECT rr.id, rr.parking_id as parkingId, rr.person_id as personId, rr.invitation_id as invitationId, " +
+            "rr.previous_parking_id as previousParkingId, rr.status, rr.created_at as createdAt, rr.updated_at as updatedAt, " +
+            "p.name as parkingName, c.name as cityName, u.name as personName, u.email as personEmail, " +
+            "p_prev.name as previousParkingName, c_prev.name as previousCityName " +
+            "FROM rider_requests rr " +
+            "JOIN parkings p ON rr.parking_id = p.id " +
+            "JOIN buildings b ON p.building_id = b.id " +
+            "JOIN cities c ON b.city_id = c.id " +
+            "JOIN persons u ON rr.person_id = u.id " +
+            "LEFT JOIN parkings p_prev ON rr.previous_parking_id = p_prev.id " +
+            "LEFT JOIN buildings b_prev ON p_prev.building_id = b_prev.id " +
+            "LEFT JOIN cities c_prev ON b_prev.city_id = c_prev.id " +
+            "WHERE rr.parking_id = ? " +
+            "ORDER BY rr.created_at DESC"
+        )
+          .bind(parkingId)
+          .all<any>();
+
+        const mapped = (res.results || []).map((r) => ({
+          ...r,
+          isSwitch: Boolean(r.previousParkingId),
+        }));
+        return jsonResponse(mapped);
+      }
+
+      // Manager: Approve rider request
+      if (
+        pathname.startsWith("/api/me/parkings/") &&
+        pathname.includes("/rider-requests/") &&
+        pathname.endsWith("/approve") &&
+        request.method === "POST"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
+
+        const parts = pathname.replace("/api/me/parkings/", "").replace("/approve", "").split("/rider-requests/");
+        const parkingId = decodeURIComponent(parts[0]);
+        const reqId = decodeURIComponent(parts[1]);
+
+        const isManager = await env.DB.prepare(
+          "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+        )
+          .bind(parkingId, caller.id)
+          .first();
+
+        if (!isManager) {
+          return jsonResponse({ error: "Forbidden: You are not a manager of this parking stand" }, 403);
+        }
+
+        const reqRow = await env.DB.prepare(
+          "SELECT r.id, r.parking_id, r.person_id, r.status, r.previous_parking_id " +
+            "FROM rider_requests r WHERE r.id = ? AND r.parking_id = ?"
+        )
+          .bind(reqId, parkingId)
+          .first<any>();
+
+        if (!reqRow) {
+          return jsonResponse({ error: "Rider request not found" }, 404);
+        }
+
+        // Update request status
+        await env.DB.prepare(
+          "UPDATE rider_requests SET status = 'approved', updated_at = datetime('now') WHERE id = ?"
+        )
+          .bind(reqId)
+          .run();
+
+        // Enforce single-shed constraint: remove previous assignment if switching
+        await env.DB.prepare("DELETE FROM parking_riders WHERE person_id = ?")
+          .bind(reqRow.person_id)
+          .run();
+
+        // Assign to parking_riders
+        const prId = `pr-${crypto.randomUUID().slice(0, 8)}`;
+        await env.DB.prepare(
+          "INSERT INTO parking_riders (id, parking_id, person_id, assigned_by) VALUES (?, ?, ?, ?)"
+        )
+          .bind(prId, reqRow.parking_id, reqRow.person_id, caller.id)
+          .run();
+
+        // Ensure Rider role
+        const roleId = `role-${crypto.randomUUID().slice(0, 8)}`;
+        await env.DB.prepare(
+          "INSERT OR IGNORE INTO person_roles (id, person_id, role) VALUES (?, ?, 'Rider')"
+        )
+          .bind(roleId, reqRow.person_id)
+          .run();
+
+        const updated = await env.DB.prepare(
+          "SELECT rr.id, rr.parking_id as parkingId, rr.person_id as personId, rr.invitation_id as invitationId, " +
+            "rr.previous_parking_id as previousParkingId, rr.status, rr.created_at as createdAt, rr.updated_at as updatedAt, " +
+            "p.name as parkingName, c.name as cityName, u.name as personName, u.email as personEmail " +
+            "FROM rider_requests rr " +
+            "JOIN parkings p ON rr.parking_id = p.id " +
+            "JOIN buildings b ON p.building_id = b.id " +
+            "JOIN cities c ON b.city_id = c.id " +
+            "JOIN persons u ON rr.person_id = u.id " +
+            "WHERE rr.id = ?"
+        )
+          .bind(reqId)
+          .first<any>();
+
+        return jsonResponse({ ...updated, isSwitch: Boolean(updated.previousParkingId) });
+      }
+
+      // Manager: Reject rider request
+      if (
+        pathname.startsWith("/api/me/parkings/") &&
+        pathname.includes("/rider-requests/") &&
+        pathname.endsWith("/reject") &&
+        request.method === "POST"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
+
+        const parts = pathname.replace("/api/me/parkings/", "").replace("/reject", "").split("/rider-requests/");
+        const parkingId = decodeURIComponent(parts[0]);
+        const reqId = decodeURIComponent(parts[1]);
+
+        const isManager = await env.DB.prepare(
+          "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+        )
+          .bind(parkingId, caller.id)
+          .first();
+
+        if (!isManager) {
+          return jsonResponse({ error: "Forbidden: You are not a manager of this parking stand" }, 403);
+        }
+
+        await env.DB.prepare(
+          "UPDATE rider_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ? AND parking_id = ?"
+        )
+          .bind(reqId, parkingId)
+          .run();
+
+        const updated = await env.DB.prepare(
+          "SELECT rr.id, rr.parking_id as parkingId, rr.person_id as personId, rr.invitation_id as invitationId, " +
+            "rr.previous_parking_id as previousParkingId, rr.status, rr.created_at as createdAt, rr.updated_at as updatedAt, " +
+            "p.name as parkingName, c.name as cityName, u.name as personName, u.email as personEmail " +
+            "FROM rider_requests rr " +
+            "JOIN parkings p ON rr.parking_id = p.id " +
+            "JOIN buildings b ON p.building_id = b.id " +
+            "JOIN cities c ON b.city_id = c.id " +
+            "JOIN persons u ON rr.person_id = u.id " +
+            "WHERE rr.id = ?"
+        )
+          .bind(reqId)
+          .first<any>();
+
+        return jsonResponse({ ...updated, isSwitch: Boolean(updated?.previousParkingId) });
+      }
+
+      // Manager: List active riders at parking stand
+      if (
+        pathname.startsWith("/api/me/parkings/") &&
+        pathname.endsWith("/riders") &&
+        request.method === "GET"
+      ) {
+        const caller = await authenticateRequest(request, env);
+        if (!caller) {
+          return jsonResponse({ error: "Missing or invalid authorization token" }, 401);
+        }
+        if (!caller.roles.includes("Manager")) {
+          return jsonResponse({ error: "Forbidden: Manager role required" }, 403);
+        }
+
+        const parkingId = decodeURIComponent(
+          pathname.replace("/api/me/parkings/", "").replace("/riders", "")
+        );
+
+        const isManager = await env.DB.prepare(
+          "SELECT id FROM parking_managers WHERE parking_id = ? AND person_id = ?"
+        )
+          .bind(parkingId, caller.id)
+          .first();
+
+        if (!isManager) {
+          return jsonResponse({ error: "Forbidden: You are not a manager of this parking stand" }, 403);
+        }
+
+        const res = await env.DB.prepare(
+          "SELECT pr.id, pr.parking_id as parkingId, pr.person_id as personId, pr.assigned_by as assignedBy, pr.created_at as createdAt, " +
+            "p.name as parkingName, c.name as cityName, u.name as personName, u.email as personEmail " +
+            "FROM parking_riders pr " +
+            "JOIN parkings p ON pr.parking_id = p.id " +
+            "JOIN buildings b ON p.building_id = b.id " +
+            "JOIN cities c ON b.city_id = c.id " +
+            "JOIN persons u ON pr.person_id = u.id " +
+            "WHERE pr.parking_id = ? " +
+            "ORDER BY u.name ASC"
+        )
+          .bind(parkingId)
+          .all<any>();
+
         return jsonResponse(res.results || []);
       }
 

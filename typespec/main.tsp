@@ -151,6 +151,9 @@ model InvitationDetails {
   cityName?: string;
   createdByName?: string;
   expiresAt: string;
+  currentParkingId?: string;
+  currentParkingName?: string;
+  currentCityName?: string;
 }
 
 enum ManagerRequestStatus {
@@ -173,6 +176,24 @@ model ManagerRequest {
   personEmail?: string;
 }
 
+model RiderRequest {
+  id: string;
+  parkingId: string;
+  personId: string;
+  invitationId?: string;
+  previousParkingId?: string;
+  isSwitch: boolean;
+  status: ManagerRequestStatus;
+  createdAt: string;
+  updatedAt: string;
+  parkingName?: string;
+  cityName?: string;
+  personName?: string;
+  personEmail?: string;
+  previousParkingName?: string;
+  previousCityName?: string;
+}
+
 model ParkingManager {
   id: string;
   parkingId: string;
@@ -185,12 +206,33 @@ model ParkingManager {
   personEmail?: string;
 }
 
+model ParkingRider {
+  id: string;
+  parkingId: string;
+  personId: string;
+  assignedBy?: string;
+  createdAt: string;
+  parkingName?: string;
+  cityName?: string;
+  personName?: string;
+  personEmail?: string;
+}
+
+model RespondInvitationRequest {
+  confirmSwitch?: boolean;
+}
+
 model RespondInvitationResponse {
   action: string;
   status: string;
   message: string;
+  currentParkingName?: string;
+  currentCityName?: string;
+  targetParkingName?: string;
   request?: ManagerRequest;
+  riderRequest?: RiderRequest;
   parkingManager?: ParkingManager;
+  parkingRider?: ParkingRider;
 }
 
 enum CycleStatus {
@@ -311,14 +353,68 @@ namespace Endpoints {
 
   @get
   @route("/invitations/{token}")
-  op getInvitation(@path token: string): InvitationDetails;
+  op getInvitation(@path token: string, @header authorization?: string): InvitationDetails;
 
   @post
   @route("/invitations/{token}/respond")
   op respondToInvitation(
     @path token: string,
+    @body body?: RespondInvitationRequest,
     @header authorization?: string
   ): RespondInvitationResponse;
+
+  @post
+  @route("/parkings/{id}/rider-invitations")
+  op createRiderInvitation(
+    @path id: string,
+    @body body: CreateManagerInvitationRequest,
+    @header authorization?: string
+  ): ManagerInvitation;
+
+  @get
+  @route("/parkings/{id}/rider-invitations")
+  op listRiderInvitations(
+    @path id: string,
+    @header authorization?: string
+  ): ManagerInvitation[];
+
+  @post
+  @route("/parkings/{id}/rider-invitations/{invitationId}/revoke")
+  op revokeRiderInvitation(
+    @path id: string,
+    @path invitationId: string,
+    @header authorization?: string
+  ): ManagerInvitation;
+
+  @get
+  @route("/me/parkings/{id}/rider-requests")
+  op listParkingRiderRequests(
+    @path id: string,
+    @header authorization?: string
+  ): RiderRequest[];
+
+  @post
+  @route("/me/parkings/{id}/rider-requests/{requestId}/approve")
+  op approveParkingRiderRequest(
+    @path id: string,
+    @path requestId: string,
+    @header authorization?: string
+  ): RiderRequest;
+
+  @post
+  @route("/me/parkings/{id}/rider-requests/{requestId}/reject")
+  op rejectParkingRiderRequest(
+    @path id: string,
+    @path requestId: string,
+    @header authorization?: string
+  ): RiderRequest;
+
+  @get
+  @route("/me/parkings/{id}/riders")
+  op listParkingRiders(
+    @path id: string,
+    @header authorization?: string
+  ): ParkingRider[];
 
   @get
   @route("/me/manager-requests")

@@ -154,6 +154,28 @@
 * **Numeric Combination Lock Code**:
   * Strict numbers-only validation enforced on combination lock code input in frontend (`replace(/\D/g, "")`) and backend Worker (`/^\d+$/`).
 
+### `feat008`: Manager Riders Management & Single-Shed Transfer Flow
+* **Manager Riders Subtab**:
+  * Added subtab navigation in `ManagerWorkspaceView`: `🚲 Cycles Fleet` and `👥 Riders & Access`.
+  * Dedicated management interface for private residential parking stands.
+* **Rider Invitation Generator**:
+  * Managers generate rider invitations scoped to their assigned parking stands.
+  * Configurable expiry duration (1h, 6h, 12h, 24h default, 48h, 7d).
+  * Pre-approved mode toggle (`is_preapproved = 1`) granting immediate access vs standard mode requiring approval.
+  * Formatted WhatsApp message and link generation pointing to `/#/join/rider/<token>`.
+  * In-situ revocation of active invitations via `/api/parkings/{id}/rider-invitations/{invitationId}/revoke`.
+* **Single-Shed Enforcement & Transfer Flow**:
+  * A rider is strictly restricted to belonging to exactly one parking shed at a time via `UNIQUE(person_id)` constraint on `parking_riders`.
+  * Invitation landing page (`/#/join/rider/<token>`) detects existing stand assignments.
+  * When a rider holding an existing shed assignment responds to an invitation, the system prompts for explicit confirmation (`switch_required` response) to prevent accidental transfers.
+  * Confirming the transfer atomically reassigns the rider or flags the pending request with `previous_parking_id` and `is_switch = true`.
+* **Manager Review & Approvals**:
+  * Managers review pending rider requests with visual badges indicating new rider vs shed transfer.
+  * Approving a transfer atomically revokes the rider's previous parking stand membership and enrolls them in the new stand.
+  * Rejecting marks the request rejected without altering existing memberships.
+* **Active Riders Directory**:
+  * Real-time roster of authorized riders for each parking station.
+
 ---
 
 ## 2. Database
@@ -291,6 +313,35 @@
   * `idx_cycles_parking_id` on `cycles(parking_id)` (`feat006`)
   * `idx_cycles_qr_code` on `cycles(qr_code)` (`feat006`)
 
+#### Table: `parking_riders`
+| Column | Type | Constraints | Description | Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | Unique rider assignment identifier | `feat008` |
+| `parking_id` | `TEXT` | `NOT NULL REFERENCES parkings(id) ON DELETE CASCADE` | Assigned parking stand foreign key | `feat008` |
+| `person_id` | `TEXT` | `UNIQUE NOT NULL REFERENCES persons(id) ON DELETE CASCADE` | Rider user foreign key (enforces single shed) | `feat008` |
+| `assigned_by` | `TEXT` | `REFERENCES persons(id) ON DELETE SET NULL` | Manager or Admin assigner foreign key | `feat008` |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Enrollment timestamp | `feat008` |
+
+* **Indexes**:
+  * `idx_parking_riders_person` on `parking_riders(person_id)` (`feat008`)
+  * `idx_parking_riders_parking` on `parking_riders(parking_id)` (`feat008`)
+
+#### Table: `rider_requests`
+| Column | Type | Constraints | Description | Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | Unique request identifier | `feat008` |
+| `parking_id` | `TEXT` | `NOT NULL REFERENCES parkings(id) ON DELETE CASCADE` | Target parking stand foreign key | `feat008` |
+| `person_id` | `TEXT` | `NOT NULL REFERENCES persons(id) ON DELETE CASCADE` | Applicant person foreign key | `feat008` |
+| `invitation_id` | `TEXT` | `REFERENCES invitations(id) ON DELETE SET NULL` | Originating invitation link | `feat008` |
+| `previous_parking_id` | `TEXT` | `REFERENCES parkings(id) ON DELETE SET NULL` | Previous parking stand for shed transfers | `feat008` |
+| `status` | `TEXT` | `NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending'` | Workflow status | `feat008` |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Application timestamp | `feat008` |
+| `updated_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Decision timestamp | `feat008` |
+
+* **Indexes**:
+  * `idx_rider_requests_person` on `rider_requests(person_id)` (`feat008`)
+  * `idx_rider_requests_parking` on `rider_requests(parking_id, status)` (`feat008`)
+
 ### Migrations
 | Migration | Description | Feature |
 | :--- | :--- | :--- |
@@ -300,6 +351,7 @@
 | `sqlsource/migrations/0004_invitation_preapproved.sql` | Pre-approved single-use flag on invitations | `fix002` |
 | `sqlsource/migrations/0005_managers.sql` | Manager requests and parking managers rosters | `feat005` |
 | `sqlsource/migrations/0006_cycles.sql` | Cycles table for bicycle inventory management | `feat006` |
+| `sqlsource/migrations/0007_riders.sql` | Single-shed parking riders roster and transfer requests | `feat008` |
 
 ### Seed Files
 | Seed File | Description | Feature |
@@ -309,6 +361,7 @@
 | `sqlsource/seeds/seed-003-invitations.sql` | Active sample parking manager invitation | `feat004, fix002` |
 | `sqlsource/seeds/seed-004-managers.sql` | Sample applicant user and initial pending manager request | `feat005` |
 | `sqlsource/seeds/seed-005-cycles.sql` | Baseline fleet stationed at `prk-tm-tower-a` | `feat006` |
+| `sqlsource/seeds/seed-006-riders.sql` | Sample active riders (`kavita@bycme.in`, `rahim@bycme.in`), pending transfer (`deepak@bycme.in`), and active rider invitation | `feat008` |
 
 ---
 
@@ -337,11 +390,14 @@
 * `InvitationStatus`: `"active" | "used" | "revoked"` (`feat004`)
 * `CreateManagerInvitationRequest`: `{ durationHours?: int32, isPreapproved?: boolean }` (`feat004, fix002`)
 * `ManagerInvitation`: `{ id: string, token: string, parkingId: string, role: PersonRole, createdBy: string, status: InvitationStatus, isPreapproved: boolean, expiresAt: string, inviteUrl: string, whatsappMessage: string, parkingName?: string, cityName?: string, createdByName?: string, createdAt: string }` (`feat004, fix002`)
-* `InvitationDetails`: `{ token: string, role: PersonRole, isPreapproved: boolean, parkingId: string, parkingName: string, buildingName?: string, cityName?: string, createdByName?: string, expiresAt: string }` (`feat005`)
+* `InvitationDetails`: `{ token: string, role: PersonRole, isPreapproved: boolean, parkingId: string, parkingName: string, buildingName?: string, cityName?: string, createdByName?: string, expiresAt: string, currentParkingId?: string, currentParkingName?: string, currentCityName?: string }` (`feat005, feat008`)
 * `ManagerRequestStatus`: `"pending" | "approved" | "rejected"` (`feat005`)
 * `ManagerRequest`: `{ id: string, parkingId: string, personId: string, invitationId?: string, status: ManagerRequestStatus, createdAt: string, updatedAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string }` (`feat005`)
+* `RiderRequest`: `{ id: string, parkingId: string, personId: string, invitationId?: string, previousParkingId?: string, isSwitch: boolean, status: ManagerRequestStatus, createdAt: string, updatedAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string, previousParkingName?: string, previousCityName?: string }` (`feat008`)
 * `ParkingManager`: `{ id: string, parkingId: string, personId: string, assignedBy?: string, createdAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string }` (`feat005`)
-* `RespondInvitationResponse`: `{ action: string, status: string, message: string, request?: ManagerRequest, parkingManager?: ParkingManager }` (`feat005`)
+* `ParkingRider`: `{ id: string, parkingId: string, personId: string, assignedBy?: string, createdAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string }` (`feat008`)
+* `RespondInvitationRequest`: `{ confirmSwitch?: boolean }` (`feat008`)
+* `RespondInvitationResponse`: `{ action: string, status: string, message: string, currentParkingName?: string, currentCityName?: string, targetParkingName?: string, request?: ManagerRequest, riderRequest?: RiderRequest, parkingManager?: ParkingManager, parkingRider?: ParkingRider }` (`feat005, feat008`)
 * `CycleStatus`: `"Working" | "Puncture" | "Broken"` (`feat006`)
 * `Cycle`: `{ id: string, publicCycleId: string, parkingId: string, brand: string, cycleModel: string, colour: string, status: CycleStatus, lockCode: string, qrCode: string, qrUrl: string, createdAt: string, updatedAt: string, parkingName?: string, cityName?: string }` (`feat006`)
 * `CreateCycleRequest`: `{ publicCycleId?: string, brand: string, cycleModel: string, colour: string, status?: CycleStatus, lockCode: string, qrCode?: string }` (`feat006, fix006`)
@@ -367,12 +423,19 @@
 | `feat003` | `PUT` | `/api/parkings/{id}` | Update parking stand spelling / capacity | `Authorization: Bearer <token>` (Admin) | `UpdateParkingRequest` | `Parking` |
 | `feat004, fix002, fix005` | `POST` | `/api/parkings/{id}/manager-invitations` | Generate manager invitation link & WhatsApp text with expiry (Private residential parkings only) | `Authorization: Bearer <token>` (Admin) | `CreateManagerInvitationRequest` | `ManagerInvitation` |
 | `feat004, fix002` | `GET` | `/api/parkings/{id}/manager-invitations` | List unexpired active manager invitations for parking | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |
-| `feat005` | `GET` | `/api/invitations/{token}` | Public inspection of invitation link details | None | None | `InvitationDetails` |
-| `feat005, fix005` | `POST` | `/api/invitations/{token}/respond` | Submit management request or claim pre-approved assignment (Private parkings only) | `Authorization: Bearer <token>` | None | `RespondInvitationResponse` |
+| `feat008` | `POST` | `/api/parkings/{id}/rider-invitations` | Generate rider invitation link & WhatsApp text with expiry (Manager only) | `Authorization: Bearer <token>` (Manager) | `CreateManagerInvitationRequest` | `ManagerInvitation` |
+| `feat008` | `GET` | `/api/parkings/{id}/rider-invitations` | List active unexpired rider invitations for parking stand | `Authorization: Bearer <token>` (Manager) | None | `ManagerInvitation[]` |
+| `feat008` | `POST` | `/api/parkings/{id}/rider-invitations/{invitationId}/revoke` | Revoke / expire rider invitation immediately | `Authorization: Bearer <token>` (Manager) | None | `ManagerInvitation` |
+| `feat005` | `GET` | `/api/invitations/{token}` | Public inspection of invitation link details and caller's current parking assignment | None / Optional Bearer | None | `InvitationDetails` |
+| `feat005, fix005, feat008` | `POST` | `/api/invitations/{token}/respond` | Submit manager/rider request or claim assignment; detects and confirms shed transfer | `Authorization: Bearer <token>` | `RespondInvitationRequest` | `RespondInvitationResponse` |
 | `feat005` | `GET` | `/api/me/manager-requests` | List current user's submitted manager requests | `Authorization: Bearer <token>` | None | `ManagerRequest[]` |
 | `feat005` | `GET` | `/api/admin/manager-requests` | List all submitted manager requests across parkings | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest[]` |
 | `feat005, fix005` | `POST` | `/api/admin/manager-requests/{id}/approve` | Approve manager request, create manager assignment, add role (Private parkings only) | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
 | `feat005` | `POST` | `/api/admin/manager-requests/{id}/reject` | Reject manager request | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
+| `feat008` | `GET` | `/api/me/parkings/{id}/rider-requests` | List rider access requests for managed stand with transfer indicator | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest[]` |
+| `feat008` | `POST` | `/api/me/parkings/{id}/rider-requests/{id}/approve` | Approve rider access request, reassign parking stand, assign Rider role | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest` |
+| `feat008` | `POST` | `/api/me/parkings/{id}/rider-requests/{id}/reject` | Reject rider access request | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest` |
+| `feat008` | `GET` | `/api/me/parkings/{id}/riders` | List active authorized riders roster for managed parking stand | `Authorization: Bearer <token>` (Manager) | None | `ParkingRider[]` |
 | `fix003` | `GET` | `/api/admin/invitations` | List invitations across all parking stations with joined details | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |
 | `fix003` | `POST` | `/api/admin/invitations/{id}/revoke` | Revoke / expire invitation link immediately | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation` |
 | `feat006, fix004` | `GET` | `/api/me/parkings` | List parking stations managed by caller | `Authorization: Bearer <token>` (Manager) | None | `Parking[]` |
@@ -380,3 +443,13 @@
 | `feat006, fix004, fix006` | `POST` | `/api/parkings/{id}/cycles` | Register new cycle to parking stand (auto-generates cycle ID, validates numeric lock code) | `Authorization: Bearer <token>` (Manager) | `CreateCycleRequest` | `Cycle` |
 | `feat006, fix004, fix006` | `PUT` | `/api/cycles/{id}` | Update cycle condition, lock code, QR code, or metadata (validates numeric lock code) | `Authorization: Bearer <token>` (Manager) | `UpdateCycleRequest` | `Cycle` |
 | `feat006` | `GET` | `/api/cycles/lookup/{identifier}` | Search cycle by publicCycleId or qr_code | `Authorization: Bearer <token>` (Manager/Admin) | None | `Cycle` |
+
+---
+
+## 4. Client URL Schemes & Deep Links
+
+| Route / Scheme | Purpose | Feature | Target User |
+| :--- | :--- | :--- | :--- |
+| `/#/join/mgr/<token>` | Manager invitation landing page (login/register + claim or request management) | `feat004, feat005` | Prospective Manager |
+| `/#/join/rider/<token>` | Rider invitation landing page (login/register + claim or request rider access with single-shed transfer confirmation) | `feat008` | Prospective / Existing Rider |
+| `/#/cycle/<qr_code>` | Cycle QR code lookup portal (view status, lock code, and reservation actions) | `feat006` | Authorized Rider / Manager |

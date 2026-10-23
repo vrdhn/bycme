@@ -4,6 +4,9 @@ import {
   Parking,
   Cycle,
   CycleStatus,
+  ParkingRider,
+  RiderRequest,
+  ManagerInvitation,
 } from "../../../generated/shared";
 
 interface ManagerWorkspaceViewProps {
@@ -18,6 +21,24 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Manager Workspace Subtabs
+  const [managerTab, setManagerTab] = useState<"cycles" | "riders">("cycles");
+
+  // Riders state
+  const [riders, setRiders] = useState<ParkingRider[]>([]);
+  const [riderRequests, setRiderRequests] = useState<RiderRequest[]>([]);
+  const [riderInvites, setRiderInvites] = useState<ManagerInvitation[]>([]);
+  const [ridersLoading, setRidersLoading] = useState(false);
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  // Rider Invite Modal state
+  const [showRiderInviteModal, setShowRiderInviteModal] = useState(false);
+  const [riderInviteDuration, setRiderInviteDuration] = useState<number>(24);
+  const [riderInvitePreapproved, setRiderInvitePreapproved] = useState<boolean>(false);
+  const [createdRiderInvite, setCreatedRiderInvite] = useState<ManagerInvitation | null>(null);
+  const [riderInviteLoading, setRiderInviteLoading] = useState(false);
+  const [riderInviteError, setRiderInviteError] = useState<string | null>(null);
 
   // Search filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -87,6 +108,94 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
   useEffect(() => {
     loadCycles();
   }, [loadCycles]);
+
+  // Load riders data for selected parking
+  const loadRidersData = useCallback(async () => {
+    if (!selectedParkingId) return;
+    setRidersLoading(true);
+    try {
+      const [rList, reqList, invList] = await Promise.all([
+        apiClient.listParkingRiders(selectedParkingId, token),
+        apiClient.listParkingRiderRequests(selectedParkingId, token),
+        apiClient.listRiderInvitations(selectedParkingId, token),
+      ]);
+      setRiders(rList);
+      setRiderRequests(reqList);
+      setRiderInvites(invList);
+    } catch {
+      // ignore
+    } finally {
+      setRidersLoading(false);
+    }
+  }, [apiClient, selectedParkingId, token]);
+
+  useEffect(() => {
+    loadRidersData();
+  }, [loadRidersData]);
+
+  const handleApproveRider = async (reqId: string) => {
+    setActionInProgress(reqId);
+    setError(null);
+    try {
+      await apiClient.approveParkingRiderRequest(selectedParkingId, reqId, token);
+      setSuccessMsg("Approved rider request successfully");
+      setTimeout(() => setSuccessMsg(null), 3500);
+      loadRidersData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to approve rider request");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleRejectRider = async (reqId: string) => {
+    setActionInProgress(reqId);
+    setError(null);
+    try {
+      await apiClient.rejectParkingRiderRequest(selectedParkingId, reqId, token);
+      setSuccessMsg("Rejected rider request");
+      setTimeout(() => setSuccessMsg(null), 3500);
+      loadRidersData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reject rider request");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const handleCreateRiderInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRiderInviteLoading(true);
+    setRiderInviteError(null);
+    try {
+      const inv = await apiClient.createRiderInvitation(
+        selectedParkingId,
+        {
+          durationHours: riderInviteDuration,
+          isPreapproved: riderInvitePreapproved,
+        },
+        token
+      );
+      setCreatedRiderInvite(inv);
+      loadRidersData();
+    } catch (err) {
+      setRiderInviteError(err instanceof Error ? err.message : "Failed to create rider invitation");
+    } finally {
+      setRiderInviteLoading(false);
+    }
+  };
+
+  const handleRevokeRiderInvite = async (invId: string) => {
+    setError(null);
+    try {
+      await apiClient.revokeRiderInvitation(selectedParkingId, invId, token);
+      setSuccessMsg("Rider invitation revoked");
+      setTimeout(() => setSuccessMsg(null), 3000);
+      loadRidersData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to revoke invitation");
+    }
+  };
 
   const selectedParking = parkings.find((p) => p.id === selectedParkingId);
 
@@ -278,6 +387,26 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
         </div>
       </div>
 
+      {/* Manager Workspace Subtabs */}
+      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.25rem", flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className={managerTab === "cycles" ? "btn-primary" : "btn-secondary"}
+          style={{ width: "auto", padding: "0.45rem 1.25rem" }}
+          onClick={() => setManagerTab("cycles")}
+        >
+          🚲 Cycles Fleet ({cycles.length})
+        </button>
+        <button
+          type="button"
+          className={managerTab === "riders" ? "btn-primary" : "btn-secondary"}
+          style={{ width: "auto", padding: "0.45rem 1.25rem" }}
+          onClick={() => setManagerTab("riders")}
+        >
+          👥 Riders & Access ({riders.length})
+        </button>
+      </div>
+
       {successMsg && (
         <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#15803d", padding: "0.75rem 1rem", borderRadius: "0.5rem", fontSize: "0.85rem", marginBottom: "1rem" }}>
           {successMsg}
@@ -286,8 +415,11 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
 
       {error && <div className="alert-error" style={{ marginBottom: "1rem" }}>{error}</div>}
 
-      {/* Filter and Inventory Section */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
+      {/* Cycles Fleet Tab */}
+      {managerTab === "cycles" && (
+        <>
+          {/* Filter and Inventory Section */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
         <div style={{ flex: 1, minWidth: "220px", maxWidth: "340px" }}>
           <input
             type="text"
@@ -449,6 +581,285 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      </>
+      )}
+
+      {/* Riders Tab View */}
+      {managerTab === "riders" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
+            <div>
+              <h3 style={{ margin: "0 0 0.25rem 0", color: "var(--text-main)" }}>👥 Riders & Station Access</h3>
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
+                Manage rider access, generate invitations, and review transfer requests for {selectedParking?.name}.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                setCreatedRiderInvite(null);
+                setRiderInviteError(null);
+                setShowRiderInviteModal(true);
+              }}
+              disabled={!selectedParkingId}
+              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+            >
+              🔑 + Invite Rider
+            </button>
+          </div>
+
+          {/* Section 1: Pending Access & Transfer Requests */}
+          <div className="card" style={{ marginBottom: "1.5rem" }}>
+            <h4 style={{ margin: "0 0 0.75rem 0", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>📬 Pending Requests</span>
+              {riderRequests.filter((r) => r.status === "pending").length > 0 && (
+                <span
+                  style={{
+                    background: "#fef3c7",
+                    color: "#92400e",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    padding: "0.15rem 0.5rem",
+                    borderRadius: "1rem",
+                  }}
+                >
+                  {riderRequests.filter((r) => r.status === "pending").length}
+                </span>
+              )}
+            </h4>
+
+            {ridersLoading ? (
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Loading requests...</p>
+            ) : riderRequests.filter((r) => r.status === "pending").length === 0 ? (
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
+                No pending rider requests for this parking stand.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {riderRequests
+                  .filter((r) => r.status === "pending")
+                  .map((req) => (
+                    <div
+                      key={req.id}
+                      style={{
+                        padding: "0.85rem 1rem",
+                        background: "var(--card-bg-subtle)",
+                        border: "1px solid var(--border-color)",
+                        borderRadius: "0.5rem",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: "0.75rem",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, color: "var(--text-main)" }}>
+                          {req.personName || "Unknown Applicant"}
+                        </div>
+                        <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>{req.personEmail}</div>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.25rem" }}>
+                          Submitted: {new Date(req.createdAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
+                        </div>
+                        {req.isSwitch && (
+                          <div style={{ marginTop: "0.4rem" }}>
+                            <span
+                              style={{
+                                background: "#fff7ed",
+                                color: "#c2410c",
+                                border: "1px solid #fed7aa",
+                                padding: "0.2rem 0.5rem",
+                                borderRadius: "0.25rem",
+                                fontSize: "0.75rem",
+                                fontWeight: 700,
+                              }}
+                            >
+                              🔄 Shed Transfer from {req.previousParkingName || "Previous Stand"}
+                              {req.previousCityName ? ` (${req.previousCityName})` : ""}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <button
+                          type="button"
+                          className="btn-primary"
+                          style={{ fontSize: "0.8rem", padding: "0.35rem 0.85rem" }}
+                          disabled={actionInProgress === req.id}
+                          onClick={() => handleApproveRider(req.id)}
+                        >
+                          {actionInProgress === req.id ? "Processing..." : "✓ Approve"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ fontSize: "0.8rem", padding: "0.35rem 0.85rem", color: "#dc2626" }}
+                          disabled={actionInProgress === req.id}
+                          onClick={() => handleRejectRider(req.id)}
+                        >
+                          ✕ Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Active Riders Directory */}
+          <div className="card" style={{ marginBottom: "1.5rem" }}>
+            <h4 style={{ margin: "0 0 0.75rem 0", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span>🚴 Active Riders Directory</span>
+              <span
+                style={{
+                  background: "var(--card-bg-subtle)",
+                  color: "var(--primary-color)",
+                  border: "1px solid var(--border-color)",
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  padding: "0.15rem 0.5rem",
+                  borderRadius: "1rem",
+                }}
+              >
+                {riders.length} active
+              </span>
+            </h4>
+
+            {ridersLoading ? (
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Loading active riders...</p>
+            ) : riders.length === 0 ? (
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
+                No active riders registered for this parking stand. Click <strong>+ Invite Rider</strong> to onboard users.
+              </p>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ background: "var(--card-bg-subtle)", borderBottom: "1px solid var(--border-color)" }}>
+                      <th style={{ padding: "0.6rem 0.75rem" }}>Rider Name</th>
+                      <th style={{ padding: "0.6rem 0.75rem" }}>Email Address</th>
+                      <th style={{ padding: "0.6rem 0.75rem" }}>Enrolled Date</th>
+                      <th style={{ padding: "0.6rem 0.75rem" }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {riders.map((r) => (
+                      <tr key={r.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
+                        <td style={{ padding: "0.6rem 0.75rem", fontWeight: 600 }}>{r.personName}</td>
+                        <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>{r.personEmail}</td>
+                        <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>
+                          {new Date(r.createdAt).toLocaleDateString()}
+                        </td>
+                        <td style={{ padding: "0.6rem 0.75rem" }}>
+                          <span
+                            style={{
+                              background: "#f0fdf4",
+                              color: "#15803d",
+                              padding: "0.15rem 0.45rem",
+                              borderRadius: "0.25rem",
+                              fontSize: "0.75rem",
+                              fontWeight: 600,
+                            }}
+                          >
+                            ACTIVE
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3: Active Rider Invitations */}
+          <div className="card">
+            <h4 style={{ margin: "0 0 0.75rem 0", color: "var(--text-main)" }}>
+              🎟️ Active Rider Invitations ({riderInvites.filter((i) => i.status === "active").length})
+            </h4>
+
+            {riderInvites.filter((i) => i.status === "active").length === 0 ? (
+              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
+                No active invitations. Click <strong>+ Invite Rider</strong> to generate a link.
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                {riderInvites
+                  .filter((i) => i.status === "active")
+                  .map((inv) => (
+                    <div
+                      key={inv.id}
+                      style={{
+                        padding: "0.75rem 1rem",
+                        background: "var(--card-bg-subtle)",
+                        border: "1px solid var(--border-color)",
+                        borderRadius: "0.5rem",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                        gap: "0.75rem",
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem" }}>
+                          <span
+                            style={{
+                              fontSize: "0.7rem",
+                              padding: "0.15rem 0.45rem",
+                              borderRadius: "0.25rem",
+                              background: inv.isPreapproved ? "#fef3c7" : "#e0f2fe",
+                              color: inv.isPreapproved ? "#92400e" : "#0369a1",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {inv.isPreapproved ? "⚡ PRE-APPROVED" : "📋 STANDARD"}
+                          </span>
+                          <span style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                            Token: {inv.token.slice(0, 10)}...
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                          Expires: {new Date(inv.expiresAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "0.4rem" }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ fontSize: "0.75rem", padding: "0.25rem 0.6rem" }}
+                          onClick={() => handleCopy(inv.inviteUrl, inv.id)}
+                        >
+                          {copiedId === inv.id ? "✓ Copied" : "📋 Copy Link"}
+                        </button>
+                        <a
+                          href={`https://wa.me/?text=${encodeURIComponent(inv.whatsappMessage)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-secondary"
+                          style={{ fontSize: "0.75rem", padding: "0.25rem 0.6rem", textDecoration: "none" }}
+                        >
+                          💬 WhatsApp
+                        </a>
+                        <button
+                          type="button"
+                          className="btn-text"
+                          style={{ fontSize: "0.75rem", color: "#dc2626", padding: "0.25rem 0.5rem" }}
+                          onClick={() => handleRevokeRiderInvite(inv.id)}
+                        >
+                          Revoke
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -734,6 +1145,189 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Rider Invite Modal */}
+      {showRiderInviteModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "1rem",
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: "520px",
+              width: "100%",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h3 style={{ margin: 0, color: "var(--text-main)" }}>
+                🔑 Invite Rider
+              </h3>
+              <button
+                type="button"
+                className="btn-text"
+                style={{ fontSize: "1.2rem", padding: "0.2rem" }}
+                onClick={() => setShowRiderInviteModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+              Target Stand: <strong>{selectedParking?.name}</strong>
+              {selectedParking?.cityName ? ` (${selectedParking.cityName})` : ""}
+            </div>
+
+            {riderInviteError && <div className="alert-error" style={{ marginBottom: "1rem" }}>{riderInviteError}</div>}
+
+            {createdRiderInvite ? (
+              <div>
+                <div
+                  style={{
+                    background: "#f0fdf4",
+                    border: "1px solid #bbf7d0",
+                    color: "#15803d",
+                    padding: "1rem",
+                    borderRadius: "0.5rem",
+                    marginBottom: "1rem",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>
+                    ✓ Rider Invitation Link Generated!
+                  </div>
+                  <div>
+                    This invitation is valid for {riderInviteDuration} hours.
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Invitation Link (Route: /#/join/rider/...)</label>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <input
+                      type="text"
+                      readOnly
+                      className="form-input"
+                      value={createdRiderInvite.inviteUrl}
+                      style={{ fontSize: "0.8rem", fontFamily: "monospace" }}
+                    />
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => handleCopy(createdRiderInvite.inviteUrl, "created-invite")}
+                      style={{ minWidth: "90px" }}
+                    >
+                      {copiedId === "created-invite" ? "✓ Copied" : "📋 Copy"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">WhatsApp Share Message</label>
+                  <textarea
+                    readOnly
+                    className="form-input"
+                    rows={4}
+                    value={createdRiderInvite.whatsappMessage}
+                    style={{ fontSize: "0.8rem", resize: "vertical" }}
+                  />
+                </div>
+
+                <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(createdRiderInvite.whatsappMessage)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-primary"
+                    style={{ flex: 1, textAlign: "center", textDecoration: "none", display: "inline-block" }}
+                  >
+                    💬 Share on WhatsApp
+                  </a>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setCreatedRiderInvite(null);
+                      setShowRiderInviteModal(false);
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleCreateRiderInvite}>
+                <div className="form-group">
+                  <label className="form-label">Link Validity Duration</label>
+                  <select
+                    className="form-input"
+                    value={riderInviteDuration}
+                    onChange={(e) => setRiderInviteDuration(Number(e.target.value))}
+                  >
+                    <option value={1}>1 hour</option>
+                    <option value={6}>6 hours</option>
+                    <option value={12}>12 hours</option>
+                    <option value={24}>24 hours (1 day default)</option>
+                    <option value={48}>48 hours (2 days)</option>
+                    <option value={168}>7 days (1 week)</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ marginTop: "1rem" }}>
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: "0.5rem", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={riderInvitePreapproved}
+                      onChange={(e) => setRiderInvitePreapproved(e.target.checked)}
+                      style={{ marginTop: "0.2rem" }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--text-main)" }}>
+                        ⚡ Pre-approved (Single-use direct activation)
+                      </div>
+                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
+                        The recipient directly joins this parking stand without requiring further manager approval.
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1.5rem" }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setShowRiderInviteModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={riderInviteLoading}
+                  >
+                    {riderInviteLoading ? "Generating..." : "Generate Invitation ➔"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
