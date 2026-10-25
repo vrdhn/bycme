@@ -53,7 +53,7 @@ export function ManagerInviteModal({
         token
       );
       setLatestInvite(invite);
-      setSuccessMsg("Manager invitation generated successfully.");
+      setSuccessMsg("HubHero invitation generated successfully.");
       loadInvitations();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate invitation");
@@ -113,10 +113,10 @@ export function ManagerInviteModal({
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1rem" }}>
           <div>
             <h3 style={{ margin: "0 0 0.25rem 0", color: "var(--text-main)" }}>
-              🔑 Invite Parking Manager
+              🔑 Invite HubHero
             </h3>
             <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
-              {parking.name} ({parking.buildingName || "Building"}
+              {parking.name} ({parking.buildingName || "Club"}
               {parking.cityName ? `, ${parking.cityName}` : ""})
             </p>
           </div>
@@ -158,13 +158,13 @@ export function ManagerInviteModal({
                 style={{ cursor: "pointer" }}
               />
               <span>
-                <strong>Pre-Approved</strong> (Single-use direct assignment without Admin review)
+                <strong>Pre-Approved</strong> (Single-use direct assignment without ClubHero review)
               </span>
             </label>
           </div>
 
           <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? "Generating Link..." : "Generate Manager Invite ➔"}
+            {loading ? "Generating Link..." : "Generate HubHero Invite ➔"}
           </button>
         </form>
 
@@ -244,7 +244,7 @@ export function ManagerInviteModal({
           </h4>
           {activeInvitations.length === 0 ? (
             <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>
-              No active invitations for this parking lot.
+              No active invitations for this hub.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
@@ -264,7 +264,7 @@ export function ManagerInviteModal({
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "0.2rem" }}>
-                      📍 {parking.name} <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>({parking.buildingName || "Building"}{parking.cityName ? `, ${parking.cityName}` : ""})</span>
+                      📍 {parking.name} <span style={{ fontWeight: 400, color: "var(--text-muted)" }}>({parking.buildingName || "Club"}{parking.cityName ? `, ${parking.cityName}` : ""})</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap", marginBottom: "0.2rem" }}>
                       <span style={{ fontFamily: "monospace", fontSize: "0.75rem", fontWeight: 600 }}>

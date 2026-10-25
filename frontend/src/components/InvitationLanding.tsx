@@ -243,17 +243,17 @@ export function InvitationLanding({
                 {invite.role === "Rider" ? " as Rider" : ""}
               </h2>
               <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                {invite.buildingName || "Building"}
+                {invite.buildingName || "Club"}
                 {invite.cityName ? `, ${invite.cityName}` : ""}
               </div>
             </div>
           </div>
 
           <div style={{ fontSize: "0.85rem", color: "var(--text-main)", lineHeight: 1.5 }}>
-            <strong>{invite.createdByName || (invite.role === "Rider" ? "Parking Manager" : "Administrator")}</strong>{" "}
+            <strong>{invite.createdByName || (invite.role === "Rider" ? "HubHero" : "ClubHero")}</strong>{" "}
             {invite.role === "Rider"
-              ? "has invited you to access and ride bicycles stationed at this stand."
-              : "has invited you to oversee bicycle parking operations for this station."}
+              ? "has invited you to access and ride bicycles stationed at this hub."
+              : "has invited you to oversee bicycle hub operations for this station."}
           </div>
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.5rem" }}>
             Expires: {new Date(invite.expiresAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
@@ -314,7 +314,7 @@ export function InvitationLanding({
                     type="email"
                     required
                     className="form-input"
-                    placeholder="e.g. manager@bycme.in"
+                    placeholder="e.g. hubhero@bycme.in"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -371,7 +371,7 @@ export function InvitationLanding({
                     type="email"
                     required
                     className="form-input"
-                    placeholder="e.g. manager@bycme.in"
+                    placeholder="e.g. hubhero@bycme.in"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -456,13 +456,13 @@ export function InvitationLanding({
                     gap: "0.4rem",
                   }}
                 >
-                  <span>⚠️</span> Parking Shed Transfer Confirmation
+                  <span>⚠️</span> Hub Transfer Confirmation
                 </div>
                 <p style={{ fontSize: "0.9rem", color: "#78350f", lineHeight: 1.5, margin: "0 0 1rem 0" }}>
                   You are currently enrolled at <strong>{actionResult.currentParkingName}{actionResult.currentCityName ? ` (${actionResult.currentCityName})` : ""}</strong>.
                   <br />
-                  Bycme policy permits registration at only <strong>one parking shed</strong> at any time.
-                  Switching will transfer your bicycle access to <strong>{actionResult.targetParkingName || invite.parkingName}</strong> and withdraw your membership from your current shed.
+                  Bycme policy permits registration at only <strong>one hub</strong> at any time.
+                  Switching will transfer your bicycle access to <strong>{actionResult.targetParkingName || invite.parkingName}</strong> and withdraw your membership from your current hub.
                 </p>
                 <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
                   <button
@@ -472,7 +472,7 @@ export function InvitationLanding({
                     disabled={actionLoading}
                     style={{ flex: 1, minWidth: "220px" }}
                   >
-                    {actionLoading ? "Switching..." : "Confirm & Switch Parking Shed ➔"}
+                    {actionLoading ? "Switching..." : "Confirm & Switch Hub ➔"}
                   </button>
                   <button
                     type="button"
@@ -481,7 +481,7 @@ export function InvitationLanding({
                     disabled={actionLoading}
                     style={{ flex: 1, minWidth: "180px" }}
                   >
-                    Cancel / Keep Current Shed
+                    Cancel / Keep Current Hub
                   </button>
                 </div>
               </div>
@@ -501,7 +501,7 @@ export function InvitationLanding({
                   {actionResult.status === "active"
                     ? invite.role === "Rider"
                       ? "✓ Rider Access Activated"
-                      : "✓ Manager Assigned"
+                      : "✓ HubHero Assigned"
                     : "📬 Request Submitted"}
                 </div>
                 <div style={{ marginBottom: "1rem" }}>{actionResult.message}</div>
@@ -569,17 +569,17 @@ export function InvitationLanding({
                       marginBottom: "1rem",
                     }}
                   >
-                    ℹ️ You are currently assigned to <strong>{invite.currentParkingName}</strong> ({invite.currentCityName}). Joining this stand will request a shed transfer.
+                    ℹ️ You are currently assigned to <strong>{invite.currentParkingName}</strong> ({invite.currentCityName}). Joining this hub will request a hub transfer.
                   </div>
                 )}
                 <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", marginBottom: "1.25rem" }}>
                   {invite.role === "Rider"
                     ? invite.isPreapproved
-                      ? "This invitation is pre-approved. Claiming will directly activate your Rider access for this bicycle parking stand."
-                      : "Submitting this request will send your access application to the parking stand manager for review."
+                      ? "This invitation is pre-approved. Claiming will directly activate your Rider access for this bicycle hub."
+                      : "Submitting this request will send your access application to the hub HubHero for review."
                     : invite.isPreapproved
-                    ? "This invitation is pre-approved. Claiming will directly activate your Manager role for this parking lot."
-                    : "Submitting this request will send your application to the Bycme Admin team for approval."}
+                    ? "This invitation is pre-approved. Claiming will directly activate your HubHero role for this hub."
+                    : "Submitting this request will send your application to the Bycme ClubHero team for approval."}
                 </p>
 
                 <button
@@ -595,7 +595,7 @@ export function InvitationLanding({
                       ? "Claim Rider Access ➔"
                       : "Submit Request to Join ➔"
                     : invite.isPreapproved
-                    ? "Claim Parking Management ➔"
+                    ? "Claim Hub Management ➔"
                     : "Submit Request to Manage ➔"}
                 </button>
               </div>
@@ -605,7 +605,7 @@ export function InvitationLanding({
             {existingRequests.length > 0 && invite.role === "Manager" && (
               <div style={{ marginTop: "1.5rem", borderTop: "1px solid var(--border-color)", paddingTop: "1rem" }}>
                 <h4 style={{ margin: "0 0 0.75rem 0", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                  Your Management Applications ({existingRequests.length})
+                  Your HubHero Applications ({existingRequests.length})
                 </h4>
                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                   {existingRequests.map((req) => (

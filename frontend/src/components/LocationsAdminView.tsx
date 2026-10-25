@@ -139,9 +139,9 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
       );
       setBuildings((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
       setNewBldName("");
-      setSuccess(`Building "${created.name}" created successfully.`);
+      setSuccess(`Club "${created.name}" created successfully.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create building");
+      setError(err instanceof Error ? err.message : "Failed to create club");
     }
   };
 
@@ -163,10 +163,10 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
       );
       setBuildings((prev) => prev.map((b) => (b.id === id ? updated : b)));
       setEditingBldId(null);
-      setSuccess(`Building updated successfully to "${updated.name}".`);
+      setSuccess(`Club updated successfully to "${updated.name}".`);
       loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update building");
+      setError(err instanceof Error ? err.message : "Failed to update club");
     }
   };
 
@@ -183,9 +183,9 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
       );
       setParkings((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
       setNewPrkName("");
-      setSuccess(`Parking stand "${created.name}" created successfully.`);
+      setSuccess(`Hub "${created.name}" created successfully.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create parking stand");
+      setError(err instanceof Error ? err.message : "Failed to create hub");
     }
   };
 
@@ -207,10 +207,10 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
       );
       setParkings((prev) => prev.map((p) => (p.id === id ? updated : p)));
       setEditingPrkId(null);
-      setSuccess(`Parking stand updated successfully to "${updated.name}".`);
+      setSuccess(`Hub updated successfully to "${updated.name}".`);
       loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update parking stand");
+      setError(err instanceof Error ? err.message : "Failed to update hub");
     }
   };
 
@@ -230,14 +230,14 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
           style={{ width: "auto", padding: "0.4rem 1rem", fontSize: "0.85rem" }}
           onClick={() => setActiveTab("buildings")}
         >
-          🏢 Buildings ({buildings.length})
+          🏢 Clubs ({buildings.length})
         </button>
         <button
           className={activeTab === "parkings" ? "btn-primary" : "btn-secondary"}
           style={{ width: "auto", padding: "0.4rem 1rem", fontSize: "0.85rem" }}
           onClick={() => setActiveTab("parkings")}
         >
-          🅿️ Parkings ({parkings.length})
+          🅿️ Hubs ({parkings.length})
         </button>
       </div>
 
@@ -366,7 +366,7 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
       {activeTab === "buildings" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "1.5rem" }}>
           <div className="card">
-            <h3 style={{ margin: "0 0 1rem 0", color: "var(--text-main)" }}>Add New Building</h3>
+            <h3 style={{ margin: "0 0 1rem 0", color: "var(--text-main)" }}>Add New Club</h3>
             <form onSubmit={handleCreateBuilding}>
               <div className="form-group">
                 <label className="form-label">City</label>
@@ -384,7 +384,7 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Building Name</label>
+                <label className="form-label">Club Name</label>
                 <input
                   type="text"
                   className="form-input"
@@ -395,7 +395,7 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Building Type</label>
+                <label className="form-label">Club Type</label>
                 <select
                   className="form-input"
                   value={newBldType}
@@ -411,22 +411,22 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                 style={{ marginTop: "0.5rem" }}
                 disabled={cities.length === 0}
               >
-                Add Building
+                Add Club
               </button>
             </form>
           </div>
 
           <div className="card">
-            <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>Configured Buildings</h3>
+            <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>Configured Clubs</h3>
             {loading ? (
               <p style={{ color: "var(--text-muted)" }}>Loading...</p>
             ) : buildings.length === 0 ? (
-              <p style={{ color: "var(--text-muted)" }}>No buildings configured yet.</p>
+              <p style={{ color: "var(--text-muted)" }}>No clubs configured yet.</p>
             ) : (
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Building</th>
+                    <th>Club</th>
                     <th>City</th>
                     <th>Type</th>
                     <th style={{ textAlign: "right" }}>Action</th>
@@ -511,7 +511,7 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                               className="btn-text"
                               style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem" }}
                               onClick={() => startEditBuilding(b)}
-                              title="Edit Building spelling/type"
+                              title="Edit Club spelling/type"
                             >
                               ✏️ Edit
                             </button>
@@ -531,10 +531,10 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
       {activeTab === "parkings" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "1.5rem" }}>
           <div className="card">
-            <h3 style={{ margin: "0 0 1rem 0", color: "var(--text-main)" }}>Add New Parking Stand</h3>
+            <h3 style={{ margin: "0 0 1rem 0", color: "var(--text-main)" }}>Add New Hub</h3>
             <form onSubmit={handleCreateParking}>
               <div className="form-group">
-                <label className="form-label">Parent Building</label>
+                <label className="form-label">Parent Club</label>
                 <select
                   className="form-input"
                   value={newPrkBldId}
@@ -549,7 +549,7 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Parking Stand Name</label>
+                <label className="form-label">Hub Name</label>
                 <input
                   type="text"
                   className="form-input"
@@ -577,23 +577,23 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                 style={{ marginTop: "0.5rem" }}
                 disabled={buildings.length === 0}
               >
-                Add Parking Stand
+                Add Hub
               </button>
             </form>
           </div>
 
           <div className="card">
-            <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>Configured Parking Stands</h3>
+            <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>Configured Hubs</h3>
             {loading ? (
               <p style={{ color: "var(--text-muted)" }}>Loading...</p>
             ) : parkings.length === 0 ? (
-              <p style={{ color: "var(--text-muted)" }}>No parking stands configured yet.</p>
+              <p style={{ color: "var(--text-muted)" }}>No hubs configured yet.</p>
             ) : (
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Parking Stand</th>
-                    <th>Building / City</th>
+                    <th>Hub</th>
+                    <th>Club / City</th>
                     <th>Capacity</th>
                     <th style={{ textAlign: "right" }}>Action</th>
                   </tr>
@@ -688,7 +688,7 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                                 className="btn-text"
                                 style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem", marginRight: "0.25rem", color: "var(--primary-color)", fontWeight: 600 }}
                                 onClick={() => setSelectedParkingForInvite(p)}
-                                title="Generate manager invitation link"
+                                title="Generate HubHero invitation link"
                               >
                                 🔑 Invite
                               </button>
@@ -700,16 +700,16 @@ export function LocationsAdminView({ apiClient, token }: LocationsAdminViewProps
                                   marginRight: "0.5rem",
                                   fontStyle: "italic",
                                 }}
-                                title="Public parkings cannot have a manager"
+                                title="Public hubs cannot have a HubHero"
                               >
-                                No Manager (Public)
+                                No HubHero (Public)
                               </span>
                             )}
                             <button
                               className="btn-text"
                               style={{ fontSize: "0.8rem", padding: "0.2rem 0.5rem" }}
                               onClick={() => startEditParking(p)}
-                              title="Edit Parking stand spelling/capacity"
+                              title="Edit Hub spelling/capacity"
                             >
                               ✏️ Edit
                             </button>

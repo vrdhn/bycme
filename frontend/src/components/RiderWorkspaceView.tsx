@@ -82,7 +82,7 @@ export function RiderWorkspaceView({ apiClient, token }: RiderWorkspaceViewProps
     return (
       <div className="card" style={{ padding: "2.5rem", textAlign: "center", color: "var(--text-muted)" }}>
         <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⏳</div>
-        <div>Loading rider workspace and home parking stand...</div>
+        <div>Loading rider workspace and home hub...</div>
       </div>
     );
   }
@@ -91,7 +91,7 @@ export function RiderWorkspaceView({ apiClient, token }: RiderWorkspaceViewProps
     return (
       <div className="card" style={{ padding: "2rem", textAlign: "center" }}>
         <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>🚲</div>
-        <h3 style={{ color: "#dc2626", margin: "0 0 0.5rem 0" }}>No Home Stand Assigned</h3>
+        <h3 style={{ color: "#dc2626", margin: "0 0 0.5rem 0" }}>No Home Hub Assigned</h3>
         <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", maxWidth: "480px", margin: "0 auto 1.5rem auto" }}>
           {error}
         </p>
@@ -120,13 +120,13 @@ export function RiderWorkspaceView({ apiClient, token }: RiderWorkspaceViewProps
                   letterSpacing: "0.05em",
                 }}
               >
-                🏠 Your Home Stand
+                🏠 Your Home Hub
               </span>
               <h2 style={{ margin: "0.4rem 0 0.2rem 0", color: "var(--text-main)", fontSize: "1.3rem" }}>
                 📍 {parking.name}
               </h2>
               <div style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
-                {parking.buildingName || "Building"}
+                {parking.buildingName || "Club"}
                 {parking.cityName ? `, ${parking.cityName}` : ""}
               </div>
             </div>

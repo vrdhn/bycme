@@ -84,7 +84,13 @@ export function StatusBar({
               <span>👤</span>
               <span>{currentUser.name}</span>
               {currentUser.roles.length > 0 && (
-                <span className="user-role-tag">{currentUser.roles[0]}</span>
+                <span className="user-role-tag">
+                  {currentUser.roles[0] === "Admin"
+                    ? "ClubHero"
+                    : currentUser.roles[0] === "Manager"
+                    ? "HubHero"
+                    : currentUser.roles[0]}
+                </span>
               )}
             </div>
           )}

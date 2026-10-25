@@ -44,7 +44,7 @@ export function AdminInvitationsView({ apiClient, token }: AdminInvitationsViewP
   const handleExpire = async (id: string, parkingName?: string) => {
     try {
       await apiClient.revokeAdminInvitation(id, token);
-      setFeedback(`Revoked invitation link for ${parkingName || "parking station"}.`);
+      setFeedback(`Revoked invitation link for ${parkingName || "hub"}.`);
       setTimeout(() => setFeedback(null), 3000);
       loadInvitations();
     } catch (err) {
@@ -58,7 +58,7 @@ export function AdminInvitationsView({ apiClient, token }: AdminInvitationsViewP
         <div>
           <h2 style={{ margin: "0 0 0.25rem 0", color: "var(--text-main)" }}>🎟️ Invitations Console</h2>
           <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
-            Monitor and expire manager invitation links across all parking stations.
+            Monitor and expire HubHero invitation links across all hubs.
           </p>
         </div>
 
@@ -98,7 +98,7 @@ export function AdminInvitationsView({ apiClient, token }: AdminInvitationsViewP
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.85rem" }}>
             <thead>
               <tr style={{ background: "var(--card-bg-subtle)", borderBottom: "1px solid var(--border-color)" }}>
-                <th style={{ padding: "0.75rem 1rem" }}>Parking Station</th>
+                <th style={{ padding: "0.75rem 1rem" }}>Hub</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Token / Link</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Type</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Status</th>
@@ -114,7 +114,7 @@ export function AdminInvitationsView({ apiClient, token }: AdminInvitationsViewP
                       📍 {inv.parkingName || inv.parkingId}
                     </div>
                     <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                      {inv.cityName || "City"} • Created by {inv.createdByName || "Admin"}
+                      {inv.cityName || "City"} • Created by {inv.createdByName || "ClubHero"}
                     </div>
                   </td>
 

@@ -211,6 +211,15 @@
 * **Checkout Session Audit Log**:
   * `cycle_checkouts` table updated with `return_condition` and `return_notes`.
 
+### `feat011`: Renaming in GUI (Club, Hub, ClubHero, HubHero)
+* **Frontend Domain Terminology Alignment**:
+  * `Building` renamed across the complete GUI to `Club` (Locations tabs, creation forms, tables, card tags, modals).
+  * `Parking` / `Parking Stand` renamed across the complete GUI to `Hub` (Locations tabs, dropdowns, headers, cycle registration modals, transfer dialogs, QR scan portal).
+  * `Admin` / `Administrator` renamed across the complete GUI to `ClubHero` (workspace navigation pills, console headers, user directory badges, seed login accounts, invitation attribution).
+  * `Manager` renamed across the complete GUI to `HubHero` (workspace selector, hub management view, invitation generator modal, access request tabs, out-of-service repair alerts).
+* **Underlying Architecture Stability**:
+  * Backend Cloudflare Worker endpoints, database relational schema, and TypeSpec contracts remain strictly unchanged.
+
 ---
 
 ## 2. Database

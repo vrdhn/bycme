@@ -82,7 +82,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
         setSelectedParkingId(list[0].id);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load managed parkings");
+      setError(err instanceof Error ? err.message : "Failed to load managed hubs");
     }
   }, [apiClient, token, selectedParkingId]);
 
@@ -335,7 +335,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
       <div className="card" style={{ marginBottom: "1.25rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
           <div style={{ flex: 1, minWidth: "260px" }}>
-            <label className="form-label">Active Parking Station</label>
+            <label className="form-label">Active Hub</label>
             <select
               className="form-input"
               value={selectedParkingId}
@@ -343,11 +343,11 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
               style={{ fontWeight: 600 }}
             >
               {parkings.length === 0 ? (
-                <option value="">No managed parking stands assigned</option>
+                <option value="">No managed hubs assigned</option>
               ) : (
                 parkings.map((p) => (
                   <option key={p.id} value={p.id}>
-                    📍 {p.name} ({p.buildingName || "Building"}, {p.cityName || "City"})
+                    📍 {p.name} ({p.buildingName || "Club"}, {p.cityName || "City"})
                   </option>
                 ))
               )}
@@ -452,7 +452,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
         </div>
       ) : filteredCycles.length === 0 ? (
         <div className="card" style={{ textAlign: "center", padding: "2.5rem", color: "var(--text-muted)" }}>
-          No cycles matching criteria in this parking lot. Click <strong>+ Register Cycle</strong> to add the first bicycle.
+          No cycles matching criteria in this hub. Click <strong>+ Register Cycle</strong> to add the first bicycle.
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -591,7 +591,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem", flexWrap: "wrap", gap: "1rem" }}>
             <div>
-              <h3 style={{ margin: "0 0 0.25rem 0", color: "var(--text-main)" }}>👥 Riders & Station Access</h3>
+              <h3 style={{ margin: "0 0 0.25rem 0", color: "var(--text-main)" }}>👥 Riders & Hub Access</h3>
               <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
                 Manage rider access, generate invitations, and review transfer requests for {selectedParking?.name}.
               </p>
@@ -635,7 +635,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
               <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Loading requests...</p>
             ) : riderRequests.filter((r) => r.status === "pending").length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
-                No pending rider requests for this parking stand.
+                No pending rider requests for this hub.
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -677,7 +677,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                                 fontWeight: 700,
                               }}
                             >
-                              🔄 Shed Transfer from {req.previousParkingName || "Previous Stand"}
+                              🔄 Hub Transfer from {req.previousParkingName || "Previous Hub"}
                               {req.previousCityName ? ` (${req.previousCityName})` : ""}
                             </span>
                           </div>
@@ -733,7 +733,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
               <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Loading active riders...</p>
             ) : riders.length === 0 ? (
               <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
-                No active riders registered for this parking stand. Click <strong>+ Invite Rider</strong> to onboard users.
+                No active riders registered for this hub. Click <strong>+ Invite Rider</strong> to onboard users.
               </p>
             ) : (
               <div style={{ overflowX: "auto" }}>
@@ -883,7 +883,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
         >
           <div className="card" style={{ maxWidth: "500px", width: "100%", maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-              <h3 style={{ margin: 0 }}>🚲 Register Cycle to Parking</h3>
+              <h3 style={{ margin: 0 }}>🚲 Register Cycle to Hub</h3>
               <button className="btn-text" onClick={() => setShowAddModal(false)}>✕</button>
             </div>
 
@@ -1192,7 +1192,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
             </div>
 
             <div style={{ fontSize: "0.85rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
-              Target Stand: <strong>{selectedParking?.name}</strong>
+              Target Hub: <strong>{selectedParking?.name}</strong>
               {selectedParking?.cityName ? ` (${selectedParking.cityName})` : ""}
             </div>
 
@@ -1304,7 +1304,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                         ⚡ Pre-approved (Single-use direct activation)
                       </div>
                       <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                        The recipient directly joins this parking stand without requiring further manager approval.
+                        The recipient directly joins this hub without requiring further HubHero approval.
                       </div>
                     </div>
                   </label>

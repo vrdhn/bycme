@@ -16,58 +16,58 @@ interface SeededAccount {
 
 const SEEDED_ACCOUNTS: SeededAccount[] = [
   {
-    name: "System Administrator",
+    name: "System ClubHero",
     email: "admin@bycme.in",
     role: "Admin",
-    detail: "Global Admin Console",
+    detail: "Global ClubHero Console",
   },
   {
     name: "Anita Desai",
     email: "anita@bycme.in",
     role: "Manager",
-    detail: "Pune • Gate 1 Residential Stand",
+    detail: "Pune • Gate 1 Residential Hub",
   },
   {
     name: "Vikram Joshi",
     email: "vikram@bycme.in",
     role: "Manager",
-    detail: "Pune • Clubhouse Stand",
+    detail: "Pune • Clubhouse Hub",
   },
   {
     name: "Suresh Reddy",
     email: "suresh@bycme.in",
     role: "Manager",
-    detail: "Bengaluru • East Gate Stand",
+    detail: "Bengaluru • East Gate Hub",
   },
   {
     name: "Priya Nair",
     email: "priya@bycme.in",
     role: "Manager",
-    detail: "Bengaluru • Sports Arena Stand",
+    detail: "Bengaluru • Sports Arena Hub",
   },
   {
     name: "Rahul Verma",
     email: "rahul@bycme.in",
     role: "Manager",
-    detail: "Hyderabad • Podium Level Stand",
+    detail: "Hyderabad • Podium Level Hub",
   },
   {
     name: "Kavita Sharma",
     email: "kavita@bycme.in",
     role: "Rider",
-    detail: "Pune • Gate 1 Stand Rider",
+    detail: "Pune • Gate 1 Hub Rider",
   },
   {
     name: "Rahim Khan",
     email: "rahim@bycme.in",
     role: "Rider",
-    detail: "Pune • Clubhouse Stand Rider",
+    detail: "Pune • Clubhouse Hub Rider",
   },
   {
     name: "Deepak Patel",
     email: "deepak@bycme.in",
     role: "Rider",
-    detail: "Pune • Pending Transfer to Gate 1",
+    detail: "Pune • Pending Transfer to Gate 1 Hub",
   },
   {
     name: "Rajesh Kumar",
@@ -242,7 +242,7 @@ export function LoginForm({ apiClient, onLoginSuccess, onCancel }: LoginFormProp
                           color: acc.role === "Admin" ? "#b91c1c" : acc.role === "Manager" ? "#1d4ed8" : "#b45309",
                         }}
                       >
-                        {acc.role}
+                        {acc.role === "Admin" ? "ClubHero" : acc.role === "Manager" ? "HubHero" : acc.role}
                       </span>
                     </div>
                     <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.15rem" }}>

@@ -458,13 +458,15 @@ body {
   text-transform: capitalize;
 }
 
-.badge-Admin {
+.badge-Admin,
+.badge-ClubHero {
   background: #f3e8ff;
   color: #7e22ce;
   border: 1px solid #d8b4fe;
 }
 
-.badge-Manager {
+.badge-Manager,
+.badge-HubHero {
   background: #e0f2fe;
   color: #0369a1;
   border: 1px solid #bae6fd;

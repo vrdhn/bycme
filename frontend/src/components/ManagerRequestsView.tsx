@@ -20,7 +20,7 @@ export function ManagerRequestsView({ apiClient, token }: ManagerRequestsViewPro
       const list = await apiClient.listAdminManagerRequests(token);
       setRequests(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load manager requests");
+      setError(err instanceof Error ? err.message : "Failed to load HubHero requests");
     } finally {
       setLoading(false);
     }
@@ -33,7 +33,7 @@ export function ManagerRequestsView({ apiClient, token }: ManagerRequestsViewPro
   const handleApprove = async (id: string, name?: string) => {
     try {
       await apiClient.approveManagerRequest(id, token);
-      setActionSuccess(`Approved manager request for ${name || "applicant"}.`);
+      setActionSuccess(`Approved HubHero request for ${name || "applicant"}.`);
       setTimeout(() => setActionSuccess(null), 3000);
       loadRequests();
     } catch (err) {
@@ -44,7 +44,7 @@ export function ManagerRequestsView({ apiClient, token }: ManagerRequestsViewPro
   const handleReject = async (id: string, name?: string) => {
     try {
       await apiClient.rejectManagerRequest(id, token);
-      setActionSuccess(`Rejected manager request for ${name || "applicant"}.`);
+      setActionSuccess(`Rejected HubHero request for ${name || "applicant"}.`);
       setTimeout(() => setActionSuccess(null), 3000);
       loadRequests();
     } catch (err) {
@@ -61,9 +61,9 @@ export function ManagerRequestsView({ apiClient, token }: ManagerRequestsViewPro
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
         <div>
-          <h2 style={{ margin: "0 0 0.25rem 0", color: "var(--text-main)" }}>📬 Manager Requests</h2>
+          <h2 style={{ margin: "0 0 0.25rem 0", color: "var(--text-main)" }}>📬 HubHero Requests</h2>
           <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-muted)" }}>
-            Review and approve management applications from invited managers.
+            Review and approve management applications from invited HubHeroes.
           </p>
         </div>
 
@@ -104,7 +104,7 @@ export function ManagerRequestsView({ apiClient, token }: ManagerRequestsViewPro
             <thead>
               <tr style={{ background: "var(--card-bg-subtle)", borderBottom: "1px solid var(--border-color)" }}>
                 <th style={{ padding: "0.75rem 1rem" }}>Applicant</th>
-                <th style={{ padding: "0.75rem 1rem" }}>Parking Station</th>
+                <th style={{ padding: "0.75rem 1rem" }}>Hub</th>
                 <th style={{ padding: "0.75rem 1rem" }}>City</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Status</th>
                 <th style={{ padding: "0.75rem 1rem" }}>Requested On</th>

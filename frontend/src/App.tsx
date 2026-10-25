@@ -301,7 +301,7 @@ export default function App() {
                   <div style={{ display: "flex", gap: "0.4rem" }}>
                     {currentUser.roles.map((r) => (
                       <span key={r} className={`badge-role badge-${r}`}>
-                        {r}
+                        {r === "Admin" ? "ClubHero" : r === "Manager" ? "HubHero" : r}
                       </span>
                     ))}
                   </div>
@@ -325,7 +325,7 @@ export default function App() {
                       style={{ width: "auto", padding: "0.4rem 1.25rem", fontSize: "0.9rem" }}
                       onClick={() => setWorkspaceRole("manager")}
                     >
-                      👔 Manager Workspace
+                      👔 HubHero Workspace
                     </button>
                   )}
 
@@ -336,7 +336,7 @@ export default function App() {
                       style={{ width: "auto", padding: "0.4rem 1.25rem", fontSize: "0.9rem" }}
                       onClick={() => setWorkspaceRole("admin")}
                     >
-                      🛡️ Admin Console
+                      🛡️ ClubHero Console
                     </button>
                   )}
 
@@ -372,14 +372,14 @@ export default function App() {
                       style={{ width: "auto", padding: "0.5rem 1.25rem" }}
                       onClick={() => setAdminSection("locations")}
                     >
-                      📍 Locations (Cities / Buildings / Parkings)
+                      📍 Locations (Cities / Clubs / Hubs)
                     </button>
                     <button
                       className={adminSection === "requests" ? "btn-primary" : "btn-secondary"}
                       style={{ width: "auto", padding: "0.5rem 1.25rem" }}
                       onClick={() => setAdminSection("requests")}
                     >
-                      📬 Manager Requests
+                      📬 HubHero Requests
                     </button>
                     <button
                       className={adminSection === "invitations" ? "btn-primary" : "btn-secondary"}
@@ -412,7 +412,7 @@ export default function App() {
                   {adminSection === "users" && (
                     <div className="card">
                       <h3 style={{ margin: "0 0 0.5rem 0", color: "var(--text-main)" }}>
-                        User Directory (Admin Access)
+                        User Directory (ClubHero Access)
                       </h3>
                       <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
                         Listing all persons protected by Bearer token authorization.
@@ -445,7 +445,7 @@ export default function App() {
                                   <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
                                     {p.roles.map((r) => (
                                       <span key={r} className={`badge-role badge-${r}`}>
-                                        {r}
+                                        {r === "Admin" ? "ClubHero" : r === "Manager" ? "HubHero" : r}
                                       </span>
                                     ))}
                                   </div>

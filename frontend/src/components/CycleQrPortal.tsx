@@ -499,7 +499,7 @@ export function CycleQrPortal({
               >
                 <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>🚫 Rider Role Required</div>
                 <div>
-                  Your account does not possess the Rider role. Please accept a resident invitation to join a bicycle parking stand.
+                  Your account does not possess the Rider role. Please accept a resident invitation to join a bicycle hub.
                 </div>
               </div>
             ) : isNotEnrolled ? (
@@ -514,9 +514,9 @@ export function CycleQrPortal({
                   fontSize: "0.9rem",
                 }}
               >
-                <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>🚫 No Home Stand Assigned</div>
+                <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>🚫 No Home Hub Assigned</div>
                 <div>
-                  You are not currently enrolled in any bicycle parking stand. Please join your residential stand via invitation.
+                  You are not currently enrolled in any bicycle hub. Please join your residential hub via invitation.
                 </div>
               </div>
             ) : isStationMismatch ? (
@@ -531,9 +531,9 @@ export function CycleQrPortal({
                   fontSize: "0.9rem",
                 }}
               >
-                <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>🚫 Parking Stand Mismatch</div>
+                <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>🚫 Hub Mismatch</div>
                 <div>
-                  This cycle is stationed at <strong>{cycle.parkingName}</strong>. You are registered at a different parking stand. Riders may only checkout bicycles from their designated home stand.
+                  This cycle is stationed at <strong>{cycle.parkingName}</strong>. You are registered at a different hub. Riders may only checkout bicycles from their designated home hub.
                 </div>
               </div>
             ) : isDamaged ? (
@@ -550,7 +550,7 @@ export function CycleQrPortal({
               >
                 <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>✕ Bicycle Unavailable</div>
                 <div>
-                  This cycle is currently marked as <strong>{cycle.status}</strong> and cannot be checked out until repaired by the parking manager.
+                  This cycle is currently marked as <strong>{cycle.status}</strong> and cannot be checked out until repaired by the HubHero.
                 </div>
               </div>
             ) : isInUseByOther ? (
@@ -567,7 +567,7 @@ export function CycleQrPortal({
               >
                 <div style={{ fontWeight: 700, marginBottom: "0.25rem" }}>⏳ Bicycle In Use</div>
                 <div>
-                  This cycle is currently in use by another resident rider. Please select an available bicycle from the stand.
+                  This cycle is currently in use by another resident rider. Please select an available bicycle from the hub.
                 </div>
               </div>
             ) : canCheckout ? (

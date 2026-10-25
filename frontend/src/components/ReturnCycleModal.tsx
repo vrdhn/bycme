@@ -150,7 +150,7 @@ export function ReturnCycleModal({
                     ⚠️ Puncture (Flat Tyre)
                   </div>
                   <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                    Takes cycle out of service until repaired by manager.
+                    Takes cycle out of service until repaired by HubHero.
                   </div>
                 </div>
               </label>
