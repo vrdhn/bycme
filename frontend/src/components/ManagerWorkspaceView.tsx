@@ -742,6 +742,8 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                     <tr style={{ background: "var(--card-bg-subtle)", borderBottom: "1px solid var(--border-color)" }}>
                       <th style={{ padding: "0.6rem 0.75rem" }}>Rider Name</th>
                       <th style={{ padding: "0.6rem 0.75rem" }}>Email Address</th>
+                      <th style={{ padding: "0.6rem 0.75rem" }}>Mobile</th>
+                      <th style={{ padding: "0.6rem 0.75rem" }}>Emergency Contact</th>
                       <th style={{ padding: "0.6rem 0.75rem" }}>Enrolled Date</th>
                       <th style={{ padding: "0.6rem 0.75rem" }}>Status</th>
                     </tr>
@@ -751,6 +753,10 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                       <tr key={r.id} style={{ borderBottom: "1px solid var(--border-color)" }}>
                         <td style={{ padding: "0.6rem 0.75rem", fontWeight: 600 }}>{r.personName}</td>
                         <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>{r.personEmail}</td>
+                        <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-secondary)" }}>{r.personMobile || "-"}</td>
+                        <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                          {r.emergencyName ? `${r.emergencyName} (${r.emergencyPhone1 || "-"})` : r.emergencyPhone1 || "-"}
+                        </td>
                         <td style={{ padding: "0.6rem 0.75rem", color: "var(--text-muted)" }}>
                           {new Date(r.createdAt).toLocaleDateString()}
                         </td>

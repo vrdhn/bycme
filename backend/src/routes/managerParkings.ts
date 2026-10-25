@@ -258,7 +258,8 @@ export async function handleListParkingRiders(
 
   const res = await env.DB.prepare(
     "SELECT pr.id, pr.parking_id as parkingId, pr.person_id as personId, pr.assigned_by as assignedBy, pr.created_at as createdAt, " +
-      "p.name as parkingName, c.name as cityName, u.name as personName, u.email as personEmail " +
+      "p.name as parkingName, c.name as cityName, u.name as personName, u.email as personEmail, " +
+      "u.mobile as personMobile, u.emergency_name as emergencyName, u.emergency_phone1 as emergencyPhone1 " +
       "FROM parking_riders pr " +
       "JOIN parkings p ON pr.parking_id = p.id " +
       "JOIN buildings b ON p.building_id = b.id " +

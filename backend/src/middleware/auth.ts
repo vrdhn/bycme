@@ -6,16 +6,33 @@ import { Env, AuthUser } from "../types";
 import { verifySessionToken } from "../utils/crypto";
 
 /**
- * Fetch person record along with assigned roles from database.
+ * Fetch person record along with assigned roles and resolved parking from database.
  */
 export async function getPersonWithRoles(
   db: D1Database,
   userId: string
 ): Promise<AuthUser | null> {
   const person = await db
-    .prepare("SELECT id, email, name, created_at FROM persons WHERE id = ?")
+    .prepare(
+      `SELECT id, email, name, dob, gender, mobile, comments, address,
+              emergency_name, emergency_phone1, emergency_phone2, created_at
+       FROM persons WHERE id = ?`
+    )
     .bind(userId)
-    .first<{ id: string; email: string; name: string; created_at: string }>();
+    .first<{
+      id: string;
+      email: string;
+      name: string;
+      dob: string | null;
+      gender: string | null;
+      mobile: string | null;
+      comments: string | null;
+      address: string | null;
+      emergency_name: string | null;
+      emergency_phone1: string | null;
+      emergency_phone2: string | null;
+      created_at: string;
+    }>();
 
   if (!person) return null;
 
@@ -24,10 +41,51 @@ export async function getPersonWithRoles(
     .bind(userId)
     .all<{ role: string }>();
 
+  // Resolve associated parking stand (rider first, then manager fallback)
+  let parkingRow = await db
+    .prepare(
+      `SELECT pr.parking_id as parkingId, p.name as parkingName
+       FROM parking_riders pr
+       JOIN parkings p ON p.id = pr.parking_id
+       WHERE pr.person_id = ?`
+    )
+    .bind(userId)
+    .first<{ parkingId: string; parkingName: string }>();
+
+  if (!parkingRow) {
+    parkingRow = await db
+      .prepare(
+        `SELECT pm.parking_id as parkingId, p.name as parkingName
+         FROM parking_managers pm
+         JOIN parkings p ON p.id = pm.parking_id
+         WHERE pm.person_id = ?
+         LIMIT 1`
+      )
+      .bind(userId)
+      .first<{ parkingId: string; parkingName: string }>();
+  }
+
+  const emergencyContact =
+    person.emergency_name || person.emergency_phone1 || person.emergency_phone2
+      ? {
+          name: person.emergency_name || undefined,
+          phone1: person.emergency_phone1 || undefined,
+          phone2: person.emergency_phone2 || undefined,
+        }
+      : undefined;
+
   return {
     id: person.id,
     email: person.email,
     name: person.name,
+    parkingId: parkingRow?.parkingId || undefined,
+    parkingName: parkingRow?.parkingName || undefined,
+    dob: person.dob || undefined,
+    gender: (person.gender as AuthUser["gender"]) || undefined,
+    mobile: person.mobile || undefined,
+    comments: person.comments || undefined,
+    address: person.address || undefined,
+    emergencyContact,
     roles: (roleRows.results || []).map((r) => r.role),
     createdAt: person.created_at,
   };

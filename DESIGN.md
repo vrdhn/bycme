@@ -241,6 +241,20 @@
   * Explicit comments on every route handler indicating endpoint handled, HTTP method, authentication requirements, and role permissions.
   * Zero contract drift or database schema changes; 100% behavioral equivalence.
 
+### `feat012`: Person Profile & Personal Details
+* **Personal Profile Data Model**:
+  * Extended `persons` table with informative profile attributes: `dob` (YYYY-MM-DD), `gender` (`Male`, `Female`, `Other`, `PreferNotToSay`), `mobile`, `comments`, `address`, and emergency contact (`emergency_name`, `emergency_phone1`, `emergency_phone2`).
+  * Informative-only design: all attributes nullable with graceful fallbacks.
+* **Dynamic Hub Association**:
+  * Reuses existing `parking_riders` (primary) and `parking_managers` (fallback) relations to resolve `parkingId` and `parkingName` without column duplication.
+* **Self-Service & ClubHero Administration**:
+  * `PUT /api/auth/me`: Self-service profile editing for authenticated users (display name, DOB, gender, mobile, address, emergency contact).
+  * `PUT /api/persons/{id}`: ClubHero administrative editing for any user record including internal comments.
+* **Frontend GUI Integration**:
+  * `UserProfileModal`: Clickable user pill in `StatusBar` allows riders, managers, and admins to inspect and update their own details.
+  * `AdminEditPersonModal`: User Directory tab in ClubHero console provides inline editing for any user.
+  * `ManagerWorkspaceView`: HubHero riders roster displays rider mobile and emergency contact.
+
 ---
 
 ## 2. Database
@@ -255,6 +269,14 @@
 | `name` | `TEXT` | `NOT NULL` | Display name | `feat002` |
 | `password_hash` | `TEXT` | `NOT NULL` | 64-character hex PBKDF2-HMAC-SHA256 key | `feat002` |
 | `password_salt` | `TEXT` | `NOT NULL` | 64-character hex 32-byte cryptographic salt | `feat002` |
+| `dob` | `TEXT` | | Date of birth (YYYY-MM-DD) | `feat012` |
+| `gender` | `TEXT` | `CHECK (gender IN ('Male', 'Female', 'Other', 'PreferNotToSay'))` | Gender classification | `feat012` |
+| `mobile` | `TEXT` | | Primary mobile contact number | `feat012` |
+| `comments` | `TEXT` | | Administrative / internal notes | `feat012` |
+| `address` | `TEXT` | | Residential / building address | `feat012` |
+| `emergency_name` | `TEXT` | | Emergency contact person name | `feat012` |
+| `emergency_phone1` | `TEXT` | | Emergency contact primary phone | `feat012` |
+| `emergency_phone2` | `TEXT` | | Emergency contact secondary phone | `feat012` |
 | `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Record creation timestamp | `feat002` |
 
 * **Indexes**:
@@ -438,6 +460,7 @@
 | `sqlsource/migrations/0007_riders.sql` | Single-shed parking riders roster and transfer requests | `feat008` |
 | `sqlsource/migrations/0008_checkouts.sql` | Cycle checkout sessions enforcing 1 active cycle per rider | `feat009` |
 | `sqlsource/migrations/0009_damage_reporting.sql` | Cycle checkout damage and condition reporting on return | `feat010` |
+| `sqlsource/migrations/0010_person_details.sql` | Add personal details and emergency contact to persons | `feat012` |
 
 ### Seed Files
 | Seed File | Description | Feature |
@@ -460,7 +483,11 @@
 ### Contract Models
 * `HealthStatus`: `{ status: string, timestamp: string, environment: string }` (`feat001`)
 * `PersonRole`: `"Admin" | "Manager" | "Rider"` (`feat002`)
-* `Person`: `{ id: string, email: string, name: string, roles: PersonRole[], createdAt: string }` (`feat002`)
+* `Gender`: `"Male" | "Female" | "Other" | "PreferNotToSay"` (`feat012`)
+* `EmergencyContact`: `{ name?: string, phone1?: string, phone2?: string }` (`feat012`)
+* `Person`: `{ id: string, email: string, name: string, parkingId?: string, parkingName?: string, dob?: string, gender?: Gender, mobile?: string, comments?: string, address?: string, emergencyContact?: EmergencyContact, roles: PersonRole[], createdAt: string }` (`feat002, feat012`)
+* `UpdateMyProfileRequest`: `{ name?: string, dob?: string, gender?: Gender, mobile?: string, address?: string, emergencyContact?: EmergencyContact }` (`feat012`)
+* `UpdatePersonAdminRequest`: `{ name?: string, dob?: string, gender?: Gender, mobile?: string, comments?: string, address?: string, emergencyContact?: EmergencyContact }` (`feat012`)
 * `LoginRequest`: `{ email: string, password: string }` (`feat002`)
 * `LoginResponse`: `{ token: string, user: Person }` (`feat002`)
 * `RegisterRequest`: `{ name: string, email: string, password: string }` (`feat005`)
@@ -503,7 +530,9 @@
 | `feat002` | `POST` | `/api/auth/login` | Authenticate credentials; return session token + user profile | None | `LoginRequest` | `LoginResponse` |
 | `feat005` | `POST` | `/api/auth/register` | Register new applicant account; return session token + profile | None | `RegisterRequest` | `LoginResponse` |
 | `feat002, fix001` | `GET` | `/api/auth/me` | Return active authenticated user profile & roles | `Authorization: Bearer <token>` | None | `Person` |
+| `feat012` | `PUT` | `/api/auth/me` | Self-service update of user personal details | `Authorization: Bearer <token>` | `UpdateMyProfileRequest` | `Person` |
 | `feat002, fix001` | `GET` | `/api/persons` | List persons and assigned roles | `Authorization: Bearer <token>` (Admin) | None | `Person[]` |
+| `feat012` | `PUT` | `/api/persons/{id}` | Update person details, contact info, and comments | `Authorization: Bearer <token>` (Admin) | `UpdatePersonAdminRequest` | `Person` |
 | `feat003` | `GET` | `/api/cities` | List all cities | `Authorization: Bearer <token>` | None | `City[]` |
 | `feat003` | `POST` | `/api/cities` | Create new city | `Authorization: Bearer <token>` (Admin) | `CreateCityRequest` | `City` |
 | `feat003` | `PUT` | `/api/cities/{id}` | Update city spelling / state | `Authorization: Bearer <token>` (Admin) | `UpdateCityRequest` | `City` |

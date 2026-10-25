@@ -23,12 +23,52 @@ enum PersonRole {
   Rider,
 }
 
+enum Gender {
+  Male: "Male",
+  Female: "Female",
+  Other: "Other",
+  PreferNotToSay: "PreferNotToSay",
+}
+
+model EmergencyContact {
+  name?: string;
+  phone1?: string;
+  phone2?: string;
+}
+
 model Person {
   id: string;
   email: string;
   name: string;
+  parkingId?: string;
+  parkingName?: string;
+  dob?: string;
+  gender?: Gender;
+  mobile?: string;
+  comments?: string;
+  address?: string;
+  emergencyContact?: EmergencyContact;
   roles: PersonRole[];
   createdAt: string;
+}
+
+model UpdateMyProfileRequest {
+  name?: string;
+  dob?: string;
+  gender?: Gender;
+  mobile?: string;
+  address?: string;
+  emergencyContact?: EmergencyContact;
+}
+
+model UpdatePersonAdminRequest {
+  name?: string;
+  dob?: string;
+  gender?: Gender;
+  mobile?: string;
+  comments?: string;
+  address?: string;
+  emergencyContact?: EmergencyContact;
 }
 
 model LoginRequest {
@@ -216,6 +256,9 @@ model ParkingRider {
   cityName?: string;
   personName?: string;
   personEmail?: string;
+  personMobile?: string;
+  emergencyName?: string;
+  emergencyPhone1?: string;
 }
 
 model RespondInvitationRequest {
@@ -337,9 +380,17 @@ namespace Endpoints {
   @route("/auth/me")
   op getMe(@header authorization?: string): Person;
 
+  @put
+  @route("/auth/me")
+  op updateMyProfile(@body body: UpdateMyProfileRequest, @header authorization?: string): Person;
+
   @get
   @route("/persons")
   op listPersons(@header authorization?: string): Person[];
+
+  @put
+  @route("/persons/{id}")
+  op updatePersonAdmin(@path id: string, @body body: UpdatePersonAdminRequest, @header authorization?: string): Person;
 
   @get
   @route("/cities")

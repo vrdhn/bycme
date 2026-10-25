@@ -14,12 +14,47 @@ export interface HealthStatus {
   environment: string;
 }
 
+export type Gender = "Male" | "Female" | "Other" | "PreferNotToSay";
+
+export interface EmergencyContact {
+  name?: string;
+  phone1?: string;
+  phone2?: string;
+}
+
 export interface Person {
   id: string;
   email: string;
   name: string;
+  parkingId?: string;
+  parkingName?: string;
+  dob?: string;
+  gender?: Gender;
+  mobile?: string;
+  comments?: string;
+  address?: string;
+  emergencyContact?: EmergencyContact;
   roles: PersonRole[];
   createdAt: string;
+}
+
+export interface UpdateMyProfileRequest {
+  name?: string;
+  dob?: string;
+  gender?: Gender;
+  mobile?: string;
+  address?: string;
+  emergencyContact?: EmergencyContact;
+}
+
+export interface UpdatePersonAdminRequest {
+  name?: string;
+  dob?: string;
+  gender?: Gender;
+  mobile?: string;
+  comments?: string;
+  address?: string;
+  emergencyContact?: EmergencyContact;
 }
 
 export interface LoginRequest {
@@ -194,6 +229,9 @@ export interface ParkingRider {
   cityName?: string;
   personName?: string;
   personEmail?: string;
+  personMobile?: string;
+  emergencyName?: string;
+  emergencyPhone1?: string;
 }
 
 export interface RespondInvitationRequest {
@@ -338,10 +376,30 @@ export class BycmeClient {
     });
   }
 
+  updateMyProfile(body: UpdateMyProfileRequest, token: string): Promise<Person> {
+    return this.request<Person>("/api/auth/me", {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
   listPersons(token?: string): Promise<Person[]> {
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
     return this.request<Person[]>("/api/persons", { headers });
+  }
+
+  updatePersonAdmin(id: string, body: UpdatePersonAdminRequest, token: string): Promise<Person> {
+    return this.request<Person>(`/api/persons/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(body),
+    });
   }
 
   listCities(token?: string): Promise<City[]> {

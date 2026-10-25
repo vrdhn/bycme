@@ -9,6 +9,8 @@ import { ManagerWorkspaceView } from "./components/ManagerWorkspaceView";
 import { InvitationLanding } from "./components/InvitationLanding";
 import { RiderWorkspaceView } from "./components/RiderWorkspaceView";
 import { CycleQrPortal } from "./components/CycleQrPortal";
+import { UserProfileModal } from "./components/UserProfileModal";
+import { AdminEditPersonModal } from "./components/AdminEditPersonModal";
 
 const API_BASE = "https://bycme-staging.bycme-backend.workers.dev";
 const client = new BycmeClient(API_BASE);
@@ -21,6 +23,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<Person | null>(null);
   const [persons, setPersons] = useState<Person[]>([]);
   const [loadingPersons, setLoadingPersons] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [editingPerson, setEditingPerson] = useState<Person | null>(null);
 
   const [inviteToken, setInviteToken] = useState<string | null>(() => {
     const hash = window.location.hash;
@@ -140,6 +144,7 @@ export default function App() {
             setView("home");
           }}
           onLogout={handleLogout}
+          onOpenProfile={() => setShowProfileModal(true)}
         />
         <InvitationLanding
           apiClient={client}
@@ -171,6 +176,7 @@ export default function App() {
             setView("home");
           }}
           onLogout={handleLogout}
+          onOpenProfile={() => setShowProfileModal(true)}
         />
         <CycleQrPortal
           apiClient={client}
@@ -197,6 +203,7 @@ export default function App() {
         currentUser={currentUser}
         onBrandClick={() => setView("home")}
         onLogout={handleLogout}
+        onOpenProfile={() => setShowProfileModal(true)}
       />
 
       {view === "home" && (
@@ -432,8 +439,12 @@ export default function App() {
                             <tr>
                               <th>Name</th>
                               <th>Email</th>
+                              <th>Hub</th>
+                              <th>Mobile</th>
+                              <th>Emergency Contact</th>
                               <th>Roles</th>
                               <th>Registered</th>
+                              <th>Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -441,6 +452,19 @@ export default function App() {
                               <tr key={p.id}>
                                 <td style={{ fontWeight: 600 }}>{p.name}</td>
                                 <td style={{ color: "var(--text-secondary)" }}>{p.email}</td>
+                                <td style={{ color: p.parkingName ? "var(--primary-color)" : "var(--text-muted)" }}>
+                                  {p.parkingName ? `🚲 ${p.parkingName}` : "-"}
+                                </td>
+                                <td style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>
+                                  {p.mobile || "-"}
+                                </td>
+                                <td style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                                  {p.emergencyContact
+                                    ? p.emergencyContact.name
+                                      ? `${p.emergencyContact.name} (${p.emergencyContact.phone1 || "-"})`
+                                      : p.emergencyContact.phone1 || "-"
+                                    : "-"}
+                                </td>
                                 <td>
                                   <div style={{ display: "flex", gap: "0.25rem", flexWrap: "wrap" }}>
                                     {p.roles.map((r) => (
@@ -452,6 +476,16 @@ export default function App() {
                                 </td>
                                 <td style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
                                   {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-"}
+                                </td>
+                                <td>
+                                  <button
+                                    className="btn-secondary"
+                                    style={{ width: "auto", padding: "0.2rem 0.55rem", fontSize: "0.75rem" }}
+                                    onClick={() => setEditingPerson(p)}
+                                    title="Edit user details"
+                                  >
+                                    ✏️ Edit
+                                  </button>
                                 </td>
                               </tr>
                             ))}
@@ -465,6 +499,34 @@ export default function App() {
             </>
           )}
         </main>
+      )}
+
+      {showProfileModal && currentUser && authToken && (
+        <UserProfileModal
+          apiClient={client}
+          currentUser={currentUser}
+          token={authToken}
+          onClose={() => setShowProfileModal(false)}
+          onProfileUpdated={(updated) => {
+            setCurrentUser(updated);
+            if (adminSection === "users") loadPersons(authToken);
+          }}
+        />
+      )}
+
+      {editingPerson && authToken && (
+        <AdminEditPersonModal
+          apiClient={client}
+          person={editingPerson}
+          token={authToken}
+          onClose={() => setEditingPerson(null)}
+          onSaved={(updated) => {
+            setPersons((prev) =>
+              prev.map((p) => (p.id === updated.id ? updated : p))
+            );
+            if (currentUser?.id === updated.id) setCurrentUser(updated);
+          }}
+        />
       )}
     </>
   );

@@ -233,6 +233,41 @@
             }
           }
         }
+      },
+      "put": {
+        "operationId": "Endpoints_updateMyProfile",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Person"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMyProfileRequest"
+              }
+            }
+          }
+        }
       }
     },
     "/api/auth/register": {
@@ -1460,6 +1495,51 @@
           }
         }
       }
+    },
+    "/api/persons/{id}": {
+      "put": {
+        "operationId": "Endpoints_updatePersonAdmin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Person"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePersonAdminRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1770,6 +1850,29 @@
           "Working",
           "Puncture",
           "Broken"
+        ]
+      },
+      "EmergencyContact": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phone1": {
+            "type": "string"
+          },
+          "phone2": {
+            "type": "string"
+          }
+        }
+      },
+      "Gender": {
+        "type": "string",
+        "enum": [
+          "Male",
+          "Female",
+          "Other",
+          "PreferNotToSay"
         ]
       },
       "HealthStatus": {
@@ -2123,6 +2226,15 @@
           },
           "personEmail": {
             "type": "string"
+          },
+          "personMobile": {
+            "type": "string"
+          },
+          "emergencyName": {
+            "type": "string"
+          },
+          "emergencyPhone1": {
+            "type": "string"
           }
         }
       },
@@ -2144,6 +2256,30 @@
           },
           "name": {
             "type": "string"
+          },
+          "parkingId": {
+            "type": "string"
+          },
+          "parkingName": {
+            "type": "string"
+          },
+          "dob": {
+            "type": "string"
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          },
+          "mobile": {
+            "type": "string"
+          },
+          "comments": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "emergencyContact": {
+            "$ref": "#/components/schemas/EmergencyContact"
           },
           "roles": {
             "type": "array",
@@ -2352,6 +2488,29 @@
           }
         }
       },
+      "UpdateMyProfileRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "dob": {
+            "type": "string"
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          },
+          "mobile": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "emergencyContact": {
+            "$ref": "#/components/schemas/EmergencyContact"
+          }
+        }
+      },
       "UpdateParkingRequest": {
         "type": "object",
         "properties": {
@@ -2364,6 +2523,32 @@
           "capacity": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "UpdatePersonAdminRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "dob": {
+            "type": "string"
+          },
+          "gender": {
+            "$ref": "#/components/schemas/Gender"
+          },
+          "mobile": {
+            "type": "string"
+          },
+          "comments": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "emergencyContact": {
+            "$ref": "#/components/schemas/EmergencyContact"
           }
         }
       }

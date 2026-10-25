@@ -8,6 +8,7 @@ interface StatusBarProps {
   currentUser?: Person | null;
   onBrandClick?: () => void;
   onLogout?: () => void;
+  onOpenProfile?: () => void;
 }
 
 export function StatusBar({
@@ -15,6 +16,7 @@ export function StatusBar({
   currentUser,
   onBrandClick,
   onLogout,
+  onOpenProfile,
 }: StatusBarProps) {
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
   const [themeMode, setThemeMode] = useState<ThemeMode>("system");
@@ -80,7 +82,14 @@ export function StatusBar({
 
         <div className="status-right">
           {currentUser && (
-            <div className="user-pill" title={`Signed in as ${currentUser.email}`}>
+            <div
+              className="user-pill"
+              title={onOpenProfile ? `Signed in as ${currentUser.email} (Click to view & edit profile)` : `Signed in as ${currentUser.email}`}
+              onClick={onOpenProfile}
+              role={onOpenProfile ? "button" : undefined}
+              tabIndex={onOpenProfile ? 0 : undefined}
+              style={{ cursor: onOpenProfile ? "pointer" : "default" }}
+            >
               <span>👤</span>
               <span>{currentUser.name}</span>
               {currentUser.roles.length > 0 && (
