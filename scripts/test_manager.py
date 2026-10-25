@@ -86,6 +86,36 @@ def run_manager_tests(base_url: str = "") -> bool:
         f"Got status {res.status}",
     )
 
+    # Negative: Register cycle with duplicate lock code in same parking stand (feat013)
+    res = client.post(
+        "/api/parkings/prk-gw-gate1/cycles",
+        {
+            "brand": "Btwin",
+            "cycleModel": "Riverside 500",
+            "colour": "Navy Blue",
+            "status": "Working",
+            "lockCode": "4521",
+        },
+    )
+    assert_test(
+        "Duplicate Lock Code on Cycle Registration Blocked (400)",
+        res.status == 400 and "already in use" in str(res.data.get("error", "")).lower(),
+        f"Got status {res.status}: {res.data}",
+    )
+
+    # Negative: Update cycle to duplicate another cycle's lock code in same parking stand (feat013)
+    res = client.put(
+        "/api/cycles/cyc-sample-002",
+        {
+            "lockCode": "4521",
+        },
+    )
+    assert_test(
+        "Duplicate Lock Code on Cycle Update Blocked (400)",
+        res.status == 400 and "already in use" in str(res.data.get("error", "")).lower(),
+        f"Got status {res.status}: {res.data}",
+    )
+
     return all_passed
 
 

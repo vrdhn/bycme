@@ -25,6 +25,24 @@ def run_rider_tests(base_url: str = "") -> bool:
     kavita_token = client.token
     assert_test("Rider 1 Login (200 OK)", res.status == 200 and "token" in res.data)
 
+    # Positive: Rider self-service update profile (feat012)
+    res = client.put(
+        "/api/auth/me",
+        {
+            "mobile": "+91 98111 22334",
+            "address": "Flat 302, Tower B, Greenwood Heights, Pune",
+            "emergencyContact": {
+                "name": "Ramesh Sharma",
+                "phone1": "+91 98111 99887",
+            },
+        },
+    )
+    assert_test(
+        "Rider Update Own Profile (200 OK)",
+        res.status == 200 and res.data.get("mobile") == "+91 98111 22334",
+        f"Got status {res.status}: {res.data}",
+    )
+
     # Positive: Read home parking stand
     res = client.get("/api/me/home-parking")
     parking_info = res.data.get("parking") if isinstance(res.data, dict) else {}

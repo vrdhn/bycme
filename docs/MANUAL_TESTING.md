@@ -107,6 +107,27 @@
 
 ---
 
+### 2.8 Personal Details & Emergency Contact Management (`feat012`)
+
+| Test ID | Persona | Type | Description | Steps / Inputs | Expected Result |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **PRF-P01** | Rider / Any | Positive | Self-service update of profile details | Call `PUT /api/auth/me` with `mobile`, `address`, `emergencyContact` | Returns `200 OK`, updated profile persisted |
+| **PRF-P02** | Admin | Positive | Admin updates person record & comments | Call `PUT /api/persons/{id}` with `comments`, `mobile`, `emergencyContact` | Returns `200 OK`, administrative comments updated |
+| **PRF-N01** | Rider / Manager | Negative | Non-admin attempts admin person update | Non-admin calls `PUT /api/persons/{id}` | Returns `403 Forbidden` |
+| **PRF-N02** | Unauthenticated | Negative | Anonymous attempt to update profile | Call `PUT /api/auth/me` without `Authorization` header | Returns `401 Unauthorized` |
+
+---
+
+### 2.9 Unique Lock Code Enforcement per Hub (`feat013`)
+
+| Test ID | Persona | Type | Description | Steps / Inputs | Expected Result |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **LCK-N01** | Manager | Negative | Register cycle with duplicate lock code in same hub | Submit `POST /api/parkings/{id}/cycles` with lock code already stationed at hub | Returns `400 Bad Request` ("Lock code is already in use by cycle <ID> in this hub") |
+| **LCK-N02** | Manager | Negative | Update cycle lock code to duplicate existing hub lock code | Submit `PUT /api/cycles/{id}` with lock code of another cycle in same hub | Returns `400 Bad Request` ("Lock code is already in use by cycle <ID> in this hub") |
+| **LCK-P01** | Manager | Positive | Register cycle with identical lock code at DIFFERENT hub | Register cycle with lock code `4521` at `prk-gw-clubhouse` (different hub) | Returns `201 Created`, accepted across distinct hubs |
+
+---
+
 ## 3. Automated Test Execution Guide
 
 The test suite runs against the staging backend using Python 3 standard library:

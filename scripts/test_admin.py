@@ -82,6 +82,24 @@ def run_admin_tests(base_url: str = "") -> bool:
     res = client.post("/api/admin/invitations/non-existent-inv-id/revoke")
     assert_test("Revoke Invalid Invitation (404 Not Found)", res.status == 404)
 
+    # Positive: Admin updates person details (feat012)
+    res = client.put(
+        "/api/persons/rdr-001",
+        {
+            "comments": "VIP resident commuter",
+            "mobile": "+91 98111 22334",
+            "emergencyContact": {
+                "name": "Ramesh Sharma",
+                "phone1": "+91 98111 99887",
+            },
+        },
+    )
+    assert_test(
+        "Admin Update Person Profile (200 OK)",
+        res.status == 200 and res.data.get("comments") == "VIP resident commuter",
+        f"Got status {res.status}: {res.data}",
+    )
+
     return all_passed
 
 
