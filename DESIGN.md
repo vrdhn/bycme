@@ -220,6 +220,27 @@
 * **Underlying Architecture Stability**:
   * Backend Cloudflare Worker endpoints, database relational schema, and TypeSpec contracts remain strictly unchanged.
 
+### `tech001`: Backend Modularization & Technical Debt Resolution
+* **Monolith Decomposition**:
+  * Decomposed monolithic 2,566-line `backend/src/index.ts` into small, modular files and single-purpose functions.
+  * `backend/src/types.ts`: Environment bindings and authentication data structures.
+  * `backend/src/utils/response.ts`: CORS headers and standardized JSON responses.
+  * `backend/src/utils/crypto.ts`: PBKDF2 cryptography, password hashing/verification, session token creation/verification.
+  * `backend/src/utils/formatters.ts`: Serialization helpers for invitations, cycles, and checkouts.
+  * `backend/src/middleware/auth.ts`: Centralized token validation and role resolution.
+  * `backend/src/routes/health.ts`: Service heartbeat endpoint (`GET /api/health`).
+  * `backend/src/routes/auth.ts`: Authentication and user directory (`/api/auth/*`, `/api/persons`).
+  * `backend/src/routes/locations.ts`: City, Building, and Parking hierarchy CRUD endpoints.
+  * `backend/src/routes/invitations.ts`: Manager/Rider invitation issuance, lookup, redemption, and admin management.
+  * `backend/src/routes/managerRequests.ts`: Manager request submission, listing, approval, and rejection.
+  * `backend/src/routes/managerParkings.ts`: Managed parking hubs, rider join requests, and rider directory.
+  * `backend/src/routes/cycles.ts`: Cycle fleet CRUD operations and QR code lookup.
+  * `backend/src/routes/checkouts.ts`: Active checkout status, home parking resolution, checkout gate checks, and return with damage reporting.
+  * `backend/src/index.ts`: Lightweight Worker entry point and sequential route dispatcher.
+* **Clarity & Documentation Standards**:
+  * Explicit comments on every route handler indicating endpoint handled, HTTP method, authentication requirements, and role permissions.
+  * Zero contract drift or database schema changes; 100% behavioral equivalence.
+
 ---
 
 ## 2. Database
