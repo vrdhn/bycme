@@ -163,6 +163,18 @@ export async function handleCreateCycle(
     return jsonResponse({ error: "Cycle with this QR code already exists" }, 400);
   }
 
+  const dupLock = await env.DB.prepare(
+    "SELECT public_cycle_id FROM cycles WHERE parking_id = ? AND lock_code = ?"
+  )
+    .bind(parkingId, lockCode)
+    .first<{ public_cycle_id: string }>();
+  if (dupLock) {
+    return jsonResponse(
+      { error: `Lock code '${lockCode}' is already in use by cycle ${dupLock.public_cycle_id} in this hub` },
+      400
+    );
+  }
+
   const id = `cyc-${crypto.randomUUID().slice(0, 8)}`;
   const status =
     body.status === "Puncture" || body.status === "Broken" ? body.status : "Working";
@@ -269,6 +281,18 @@ export async function handleUpdateCycle(
     if (dupQr) {
       return jsonResponse({ error: "Cycle with this QR code already exists" }, 400);
     }
+  }
+
+  const dupLock = await env.DB.prepare(
+    "SELECT public_cycle_id FROM cycles WHERE parking_id = ? AND lock_code = ? AND id != ?"
+  )
+    .bind(newParkingId, newLockCode, cycleId)
+    .first<{ public_cycle_id: string }>();
+  if (dupLock) {
+    return jsonResponse(
+      { error: `Lock code '${newLockCode}' is already in use by cycle ${dupLock.public_cycle_id} in this hub` },
+      400
+    );
   }
 
   await env.DB.prepare(

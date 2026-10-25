@@ -255,6 +255,13 @@
   * `AdminEditPersonModal`: User Directory tab in ClubHero console provides inline editing for any user.
   * `ManagerWorkspaceView`: HubHero riders roster displays rider mobile and emergency contact.
 
+### `feat013`: Unique Lock Code Enforcement per Hub
+* **Hub-Scoped Lock Code Uniqueness**:
+  * Enforced invariant that no two cycles stationed at the same parking stand can share identical combination lock codes.
+  * Database level: unique composite index `idx_cycles_parking_lock_code` on `cycles(parking_id, lock_code)`.
+  * Backend Worker validation: `POST /api/parkings/{id}/cycles` and `PUT /api/cycles/{id}` verify lock code uniqueness in target hub before insert/update, returning a 400 error if duplicated.
+  * Frontend pre-validation: Add and Edit cycle modals in HubHero workspace assert lock code uniqueness against local inventory before submission.
+
 ---
 
 ## 2. Database
@@ -399,6 +406,7 @@
   * `idx_cycles_public_id` on `cycles(public_cycle_id)` (`feat006`)
   * `idx_cycles_parking_id` on `cycles(parking_id)` (`feat006`)
   * `idx_cycles_qr_code` on `cycles(qr_code)` (`feat006`)
+  * `idx_cycles_parking_lock_code` UNIQUE on `cycles(parking_id, lock_code)` (`feat013`)
 
 #### Table: `parking_riders`
 | Column | Type | Constraints | Description | Feature |
@@ -461,6 +469,7 @@
 | `sqlsource/migrations/0008_checkouts.sql` | Cycle checkout sessions enforcing 1 active cycle per rider | `feat009` |
 | `sqlsource/migrations/0009_damage_reporting.sql` | Cycle checkout damage and condition reporting on return | `feat010` |
 | `sqlsource/migrations/0010_person_details.sql` | Add personal details and emergency contact to persons | `feat012` |
+| `sqlsource/migrations/0011_unique_parking_lock_code.sql` | Ensure unique combination lock code per parking stand | `feat013` |
 
 ### Seed Files
 | Seed File | Description | Feature |
@@ -561,8 +570,8 @@
 | `fix003` | `POST` | `/api/admin/invitations/{id}/revoke` | Revoke / expire invitation link immediately | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation` |
 | `feat006, fix004` | `GET` | `/api/me/parkings` | List parking stations managed by caller | `Authorization: Bearer <token>` (Manager) | None | `Parking[]` |
 | `feat006, fix004` | `GET` | `/api/parkings/{id}/cycles` | List cycles stationed at parking stand | `Authorization: Bearer <token>` (Manager) | None | `Cycle[]` |
-| `feat006, fix004, fix006` | `POST` | `/api/parkings/{id}/cycles` | Register new cycle to parking stand (auto-generates cycle ID, validates numeric lock code) | `Authorization: Bearer <token>` (Manager) | `CreateCycleRequest` | `Cycle` |
-| `feat006, fix004, fix006` | `PUT` | `/api/cycles/{id}` | Update cycle condition, lock code, QR code, or metadata (validates numeric lock code) | `Authorization: Bearer <token>` (Manager) | `UpdateCycleRequest` | `Cycle` |
+| `feat006, fix004, fix006, feat013` | `POST` | `/api/parkings/{id}/cycles` | Register new cycle to parking stand (auto-generates cycle ID, enforces unique lock code per hub) | `Authorization: Bearer <token>` (Manager) | `CreateCycleRequest` | `Cycle` |
+| `feat006, fix004, fix006, feat013` | `PUT` | `/api/cycles/{id}` | Update cycle condition, lock code, QR code, or metadata (enforces unique lock code per hub) | `Authorization: Bearer <token>` (Manager) | `UpdateCycleRequest` | `Cycle` |
 | `feat006, feat009` | `GET` | `/api/cycles/lookup/{identifier}` | Search cycle by publicCycleId or qr_code (reveals lockCode only if active checkout exists) | Optional `Authorization: Bearer <token>` | None | `Cycle` |
 | `feat009` | `GET` | `/api/me/active-checkout` | Return caller's current active cycle checkout session | `Authorization: Bearer <token>` | None | `ActiveCheckoutResponse` |
 | `feat009` | `GET` | `/api/me/home-parking` | Return rider's assigned home parking stand and stationed cycles fleet | `Authorization: Bearer <token>` (Rider) | None | `HomeParkingResponse` |

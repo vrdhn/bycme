@@ -242,6 +242,14 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
   const handleAddCycle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedParkingId) return;
+
+    const trimmedLockCode = addLockCode.trim();
+    const existingWithLock = cycles.find((c) => c.lockCode === trimmedLockCode);
+    if (existingWithLock) {
+      setModalError(`Lock code '${trimmedLockCode}' is already assigned to cycle ${existingWithLock.publicCycleId} in this hub.`);
+      return;
+    }
+
     setModalLoading(true);
     setModalError(null);
 
@@ -282,6 +290,16 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
   const handleUpdateCycle = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCycle) return;
+
+    const trimmedLockCode = editLockCode.trim();
+    const existingWithLock = cycles.find(
+      (c) => c.id !== editingCycle.id && c.lockCode === trimmedLockCode
+    );
+    if (existingWithLock) {
+      setModalError(`Lock code '${trimmedLockCode}' is already assigned to cycle ${existingWithLock.publicCycleId} in this hub.`);
+      return;
+    }
+
     setModalLoading(true);
     setModalError(null);
 
