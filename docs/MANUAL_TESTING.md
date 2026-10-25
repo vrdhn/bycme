@@ -26,11 +26,16 @@
 | Test ID | Persona | Type | Description | Steps / Inputs | Expected Result |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **AUTH-P01** | Admin / Manager / Rider | Positive | Valid login with correct credentials | Submit `email` and password `Admin@Bycme2026` via login form | Session token returned, user routed to authorized workspace |
+| **AUTH-P02** | Any Authenticated | Positive | Read own authenticated user profile | Call `GET /api/auth/me` with Bearer session token | Returns `200 OK` with user ID, name, email, roles, profile details |
 | **AUTH-N01** | Any | Negative | Login attempt with invalid password | Submit valid email with invalid password `WrongPassword` | Returns `401 Unauthorized` with error alert |
 | **AUTH-N02** | Any | Negative | Login attempt with non-existent email | Submit `unknown@domain.com` | Returns `401 Unauthorized` with invalid credentials error |
 | **AUTH-N03** | Manager | Negative | Manager attempts to access Admin endpoints | Call `GET /api/admin/manager-requests` with manager session token | Returns `403 Forbidden` |
 | **AUTH-N04** | Rider | Negative | Rider attempts to access Manager endpoints | Call `GET /api/me/parkings` with rider session token | Returns `403 Forbidden` |
 | **AUTH-N05** | Unauthenticated | Negative | Anonymous call to protected endpoints | Call `GET /api/me/home-parking` without `Authorization` header | Returns `401 Unauthorized` |
+| **AUTH-N06** | Any | Negative | Login with missing email or password | Call `POST /api/auth/login` with `{}` payload | Returns `400 Bad Request` ("Email and password required") |
+| **AUTH-N07** | Any | Negative | Call protected endpoint with invalid bearer token | Pass `Authorization: Bearer invalid-token` | Returns `401 Unauthorized` |
+| **AUTH-N08** | Manager | Negative | Manager attempts to list persons directory | Call `GET /api/persons` with manager session token | Returns `403 Forbidden` |
+| **AUTH-N09** | Rider | Negative | Rider attempts to list persons directory | Call `GET /api/persons` with rider session token | Returns `403 Forbidden` |
 
 ---
 

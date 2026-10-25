@@ -43,6 +43,14 @@ def run_rider_tests(base_url: str = "") -> bool:
         f"Got status {res.status}: {res.data}",
     )
 
+    # Negative: Rider attempting to read persons directory (feat002 / fix001)
+    res = client.get("/api/persons")
+    assert_test("Rider Blocked From Reading Persons Directory (403)", res.status == 403)
+
+    # Negative: Rider attempting to update another person (feat002 / feat012)
+    res = client.put("/api/persons/admin-001", {"comments": "Hacked"})
+    assert_test("Rider Blocked From Admin Person Update (403)", res.status == 403)
+
     # Positive: Read home parking stand
     res = client.get("/api/me/home-parking")
     parking_info = res.data.get("parking") if isinstance(res.data, dict) else {}

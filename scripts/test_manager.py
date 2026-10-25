@@ -61,10 +61,18 @@ def run_manager_tests(base_url: str = "") -> bool:
         res = client.post(f"/api/parkings/prk-gw-gate1/rider-invitations/{created_invite_id}/revoke")
         assert_test("Revoke Rider Invitation (200 OK)", res.status == 200)
 
-    # Negative: Manager attempting Admin scope endpoint (RBAC boundary check)
+    # Negative: Manager attempting Admin scope endpoint (RBAC boundary check - feat002 / fix001)
     res = client.get("/api/admin/manager-requests")
     assert_test(
         "Manager Blocked From Admin Requests Scope (403)",
+        res.status == 403,
+        f"Got status {res.status}",
+    )
+
+    # Negative: Manager attempting to list persons directory (feat002 / fix001)
+    res = client.get("/api/persons")
+    assert_test(
+        "Manager Blocked From Reading Persons Directory (403)",
         res.status == 403,
         f"Got status {res.status}",
     )
@@ -115,6 +123,23 @@ def run_manager_tests(base_url: str = "") -> bool:
         res.status == 400 and "already in use" in str(res.data.get("error", "")).lower(),
         f"Got status {res.status}: {res.data}",
     )
+
+    # Positive: Update cycle to lock code used in a DIFFERENT hub stand (feat013 cross-hub isolation)
+    # Lock code 5511 is used at prk-gw-clubhouse, but not at prk-gw-gate1
+    res = client.put(
+        "/api/cycles/cyc-sample-002",
+        {
+            "lockCode": "5511",
+        },
+    )
+    assert_test(
+        "Identical Lock Code in Different Hub Stand Allowed (200 OK)",
+        res.status == 200 and res.data.get("lockCode") == "5511",
+        f"Got status {res.status}: {res.data}",
+    )
+
+    # Restore cyc-sample-002 original lock code 7890
+    client.put("/api/cycles/cyc-sample-002", {"lockCode": "7890"})
 
     return all_passed
 

@@ -24,15 +24,39 @@ def run_admin_tests(base_url: str = "") -> bool:
     res = client.get("/api/health")
     assert_test("Health Check (200 OK)", res.status == 200 and res.data.get("status") == "healthy")
 
-    # Negative: Admin login invalid password
+    # Negative: Admin login invalid password (feat002)
     res = client.login("admin@bycme.in", "WrongPassword123")
     assert_test("Admin Login Invalid Credentials (401)", res.status == 401)
 
-    # Positive: Admin login valid credentials
+    # Negative: Login with missing fields (feat002)
+    anon_client = BycmeClient(base_url)
+    res = anon_client.post("/api/auth/login", {})
+    assert_test("Login Missing Fields Blocked (400)", res.status == 400)
+
+    # Negative: Unauthenticated read of persons directory (fix001 / feat002)
+    res = anon_client.get("/api/persons")
+    assert_test("Unauthenticated Persons Directory Blocked (401)", res.status == 401)
+
+    # Negative: Unauthenticated profile read (fix001 / feat002)
+    res = anon_client.get("/api/auth/me")
+    assert_test("Unauthenticated Auth Me Blocked (401)", res.status == 401)
+
+    # Negative: Invalid token profile read (fix001 / feat002)
+    res = anon_client.get("/api/auth/me", token="invalid-token-value")
+    assert_test("Invalid Token Auth Me Blocked (401)", res.status == 401)
+
+    # Positive: Admin login valid credentials (feat002)
     res = client.login("admin@bycme.in", "Admin@Bycme2026")
     assert_test("Admin Login Valid Credentials (200 OK)", res.status == 200 and "token" in res.data)
 
-    # Positive: Read persons directory
+    # Positive: Authenticated read of own profile (feat002)
+    res = client.get("/api/auth/me")
+    assert_test(
+        "Read Authenticated Profile (200 OK)",
+        res.status == 200 and res.data.get("email") == "admin@bycme.in" and "Admin" in res.data.get("roles", []),
+    )
+
+    # Positive: Read persons directory (feat002)
     res = client.get("/api/persons")
     assert_test("Read Persons Directory (200 OK)", res.status == 200 and isinstance(res.data, list))
 
