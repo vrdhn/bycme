@@ -71,7 +71,7 @@
 ### `fix002`: Pre-Approved Manager Invitations (Direct 1-Time Assignment)
 * **Pre-Approved vs Standard Mode**:
   * Toggle in `ManagerInviteModal` to mark manager invitations as pre-approved (`is_preapproved = 1`).
-  * Pre-approved invitations are single-use tokens granting immediate manager assignment without administrative review.
+  * Pre-approved invitations are single-use tokens granting immediate manager assignment without administrative review; redeemed via atomic status update (`UPDATE ... WHERE id = ? AND status = 'active'`) with 409 concurrency protection.
   * Standard invitations allow submission of management requests requiring admin approval.
 * **Database & Contract Enhancements**:
   * `is_preapproved INTEGER NOT NULL DEFAULT 0` added to `invitations` table via migration `0004_invitation_preapproved.sql`.
@@ -286,6 +286,13 @@
   * Prefix derived from city name (`PUN-`, `BLR-`, `HYD-`, `CYC-`).
   * Backend calculates sequential integer based on existing IDs (`PREFIX-XXX`).
   * Concurrency collision retry loop (up to 3 attempts) handling simultaneous additions under high traffic.
+
+### `fix008`: Enforce Atomic Redemption for Pre-Approved Invitations
+* **Atomic State Transition**:
+  * Prevents double-redemption races on single-use pre-approved manager and rider invitation tokens.
+  * Atomic status transition `UPDATE invitations SET status = 'used' WHERE id = ? AND status = 'active'` executed prior to role assignment and membership creation.
+* **Concurrency Conflict Guard**:
+  * Returns HTTP 409 Conflict if token was concurrently claimed or is no longer in `active` state.
 
 ---
 
@@ -603,7 +610,7 @@
 | `feat008` | `GET` | `/api/parkings/{id}/rider-invitations` | List active unexpired rider invitations for parking stand | `Authorization: Bearer <token>` (Manager) | None | `ManagerInvitation[]` |
 | `feat008` | `POST` | `/api/parkings/{id}/rider-invitations/{invitationId}/revoke` | Revoke / expire rider invitation immediately | `Authorization: Bearer <token>` (Manager) | None | `ManagerInvitation` |
 | `feat005` | `GET` | `/api/invitations/{token}` | Public inspection of invitation link details and caller's current parking assignment | None / Optional Bearer | None | `InvitationDetails` |
-| `feat005, fix005, feat008` | `POST` | `/api/invitations/{token}/respond` | Submit manager/rider request or claim assignment; detects and confirms shed transfer | `Authorization: Bearer <token>` | `RespondInvitationRequest` | `RespondInvitationResponse` |
+| `feat005, fix005, feat008, fix008` | `POST` | `/api/invitations/{token}/respond` | Submit manager/rider request or claim assignment; detects and confirms shed transfer (enforces atomic redemption for pre-approved invitations) | `Authorization: Bearer <token>` | `RespondInvitationRequest` | `RespondInvitationResponse` |
 | `feat005` | `GET` | `/api/me/manager-requests` | List current user's submitted manager requests | `Authorization: Bearer <token>` | None | `ManagerRequest[]` |
 | `feat005` | `GET` | `/api/admin/manager-requests` | List all submitted manager requests across parkings | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest[]` |
 | `feat005, fix005` | `POST` | `/api/admin/manager-requests/{id}/approve` | Approve manager request, create manager assignment, add role (Private parkings only) | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |

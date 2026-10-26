@@ -72,6 +72,7 @@
 | **RDR-P03** | Existing Rider | Positive | Idempotent visit to own home stand invite | Kavita (at Gate 1) opens Gate 1 rider invite link | Displays "Already registered at this stand", no duplicate record |
 | **RDR-P04** | Existing Rider | Positive | Switch parking stand with confirmation | Rahim (at Clubhouse) opens Gate 1 invite, confirms switch dialog | Old stand deleted, new stand assigned in single atomic transaction |
 | **RDR-N01** | Existing Rider | Negative | Switch parking stand without confirmation | Rahim opens Gate 1 invite without setting `confirmSwitch: true` | Action `switch_required` returned, presents Switch Confirmation modal |
+| **RDR-N02** | Any | Negative | Respond to already used or revoked invitation | Submit respond call to already redeemed/revoked token | Returns `404 Not Found` or `409 Conflict`, prevents double-redemption |
 
 ---
 

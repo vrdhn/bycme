@@ -453,6 +453,20 @@ export async function handleRespondToInvitation(
     }
 
     if (inv.is_preapproved) {
+      const updateRes = await env.DB.prepare(
+        "UPDATE invitations SET status = 'used' WHERE id = ? AND status = 'active'"
+      )
+        .bind(inv.id)
+        .run();
+
+      const changes = updateRes.meta?.changes ?? (updateRes as any).changes ?? 0;
+      if (changes < 1) {
+        return jsonResponse(
+          { error: "Invitation was already redeemed or is no longer active" },
+          409
+        );
+      }
+
       // Remove previous parking assignment if switching sheds
       if (currentRider) {
         await env.DB.prepare("DELETE FROM parking_riders WHERE person_id = ?")
@@ -472,10 +486,6 @@ export async function handleRespondToInvitation(
         "INSERT OR IGNORE INTO person_roles (id, person_id, role) VALUES (?, ?, 'Rider')"
       )
         .bind(roleId, caller.id)
-        .run();
-
-      await env.DB.prepare("UPDATE invitations SET status = 'used' WHERE id = ?")
-        .bind(inv.id)
         .run();
 
       return jsonResponse({
@@ -536,6 +546,20 @@ export async function handleRespondToInvitation(
   }
 
   if (inv.is_preapproved) {
+    const updateRes = await env.DB.prepare(
+      "UPDATE invitations SET status = 'used' WHERE id = ? AND status = 'active'"
+    )
+      .bind(inv.id)
+      .run();
+
+    const changes = updateRes.meta?.changes ?? (updateRes as any).changes ?? 0;
+    if (changes < 1) {
+      return jsonResponse(
+        { error: "Invitation was already redeemed or is no longer active" },
+        409
+      );
+    }
+
     const pmId = `pm-${crypto.randomUUID().slice(0, 8)}`;
     await env.DB.prepare(
       "INSERT INTO parking_managers (id, parking_id, person_id, assigned_by) VALUES (?, ?, ?, ?)"
@@ -548,10 +572,6 @@ export async function handleRespondToInvitation(
       "INSERT OR IGNORE INTO person_roles (id, person_id, role) VALUES (?, ?, 'Manager')"
     )
       .bind(roleId, caller.id)
-      .run();
-
-    await env.DB.prepare("UPDATE invitations SET status = 'used' WHERE id = ?")
-      .bind(inv.id)
       .run();
 
     return jsonResponse({

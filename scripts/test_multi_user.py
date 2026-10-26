@@ -71,6 +71,14 @@ def run_cross_user_workflow(base_url: str = "") -> bool:
                     mgr_anita.post(f"/api/parkings/prk-gw-gate1/rider-invitations/{inv.get('id')}/revoke")
                     break
 
+        # 7. Attempt to respond to revoked/used invitation (assert 404/409 rejected)
+        res = rdr_kavita.post(f"/api/invitations/{invite_token}/respond")
+        assert_test(
+            "Respond to Inactive / Revoked Invitation Rejected (404/409)",
+            res.status in (404, 409),
+            f"Got status {res.status}: {res.data}",
+        )
+
     return all_passed
 
 
