@@ -10,12 +10,12 @@
 - **Database Migrations & Seeds**: Located at [`sqlsource/migrations/`](file:///data/Work/vrdhn/bycme-repo/sqlsource/migrations) and [`sqlsource/seeds/`](file:///data/Work/vrdhn/bycme-repo/sqlsource/seeds).
 
 ### 1.2 System Personas & Role Matrix
-| Persona | Seed Account | Workspace | Scope & Invariants |
+| Persona (GUI Alias) | Seed Account | Workspace | Scope & Invariants |
 | :--- | :--- | :--- | :--- |
-| **System Administrator** | `admin@bycme.in` | `🛡️ Admin Console` | Global access: cities, buildings, parkings, manager requests, invitations |
-| **Parking Manager** | `anita@bycme.in`<br>`vikram@bycme.in` | `🏢 Manager Workspace` | Stand-scoped access: cycle fleet, rider invitations, rider requests, rider roster |
-| **Resident Rider** | `kavita@bycme.in`<br>`rahim@bycme.in`<br>`deepak@bycme.in` | `🚲 Rider Workspace` | Strict 1-stand invariant (`parking_riders`), 1 active checkout limit |
-| **Anonymous Visitor** | N/A | Landing / QR Lookup | Public cycle lookup (lock code hidden), public invitation inspection |
+| **System Administrator** (`ClubHero`) | `admin@bycme.in` | `🛡️ ClubHero Console` | Global access: cities, buildings (Clubs), parkings (Hubs), manager requests, invitations, user directory |
+| **Parking Manager** (`HubHero`) | `anita@bycme.in`<br>`vikram@bycme.in`<br>`suresh@bycme.in`<br>`priya@bycme.in`<br>`rahul@bycme.in` | `👔 HubHero Workspace` | Hub-scoped access: cycle fleet, rider invitations, rider access requests, resident riders roster |
+| **Resident Rider** | `kavita@bycme.in`<br>`rahim@bycme.in`<br>`deepak@bycme.in` | `🚲 Rider Workspace` | Strict 1-hub invariant (`parking_riders`), 1 active checkout limit |
+| **Anonymous Visitor** | N/A | Landing / QR Lookup / Reset | Public cycle lookup (lock code hidden), public invitation inspection, password reset execution |
 
 ---
 
@@ -57,7 +57,7 @@
 | **MGR-P01** | Anonymous | Positive | View manager invitation landing page | Open `/#/join/mgr/<token>` for active invitation | Stand name, city, and login/register prompts displayed |
 | **MGR-P02** | Authenticated | Positive | Claim pre-approved manager invitation | Log in, visit pre-approved invite link, click Accept | Manager role added, stand assigned in `parking_managers` |
 | **MGR-P03** | Authenticated | Positive | Apply via standard manager invitation | Log in, submit standard invite link | Request added to `manager_requests` with status `pending` |
-| **MGR-P04** | Admin | Positive | Approve pending manager request | Open Admin Console -> Manager Requests -> Click Approve | Request status `approved`, stand assigned to manager |
+| **MGR-P04** | Admin | Positive | Approve pending manager request | Open ClubHero Console -> HubHero Requests -> Click Approve | Request status `approved`, stand assigned to manager |
 | **MGR-N01** | Any | Negative | Claim expired or revoked invitation | Visit `/#/join/mgr/<token>` for revoked/expired token | Returns `404 Not Found` with expiry alert banner |
 | **MGR-N02** | Manager | Negative | Manager generates invite for unmanaged stand | Anita (`prk-gw-gate1`) calls POST on `prk-palm-east` | Returns `403 Forbidden` |
 
@@ -67,7 +67,7 @@
 
 | Test ID | Persona | Type | Description | Steps / Inputs | Expected Result |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **RDR-P01** | Manager | Positive | Generate pre-approved rider invitation | Open Manager Workspace -> Invite Rider -> Pre-approved = Yes | Returns `201 Created` with shareable link |
+| **RDR-P01** | Manager | Positive | Generate pre-approved rider invitation | Open HubHero Workspace -> Invite Rider -> Pre-approved = Yes | Returns `201 Created` with shareable link |
 | **RDR-P02** | Unassigned User | Positive | Accept pre-approved rider invitation | Visit link, log in as new resident, click Join | Assigned to parking stand, role `Rider` added |
 | **RDR-P03** | Existing Rider | Positive | Idempotent visit to own home stand invite | Kavita (at Gate 1) opens Gate 1 rider invite link | Displays "Already registered at this stand", no duplicate record |
 | **RDR-P04** | Existing Rider | Positive | Switch parking stand with confirmation | Rahim (at Clubhouse) opens Gate 1 invite, confirms switch dialog | Old stand deleted, new stand assigned in single atomic transaction |
@@ -152,13 +152,21 @@
 
 ## 3. Automated Test Execution Guide
 
-The test suite runs against the staging backend using Python 3 standard library:
+The test suite runs against the backend using the `./btool test` CLI driver or directly via Python 3:
 
 ```bash
-# Run complete multi-user test suite (all personas and cross-actor flows)
-python3 scripts/test_multi_user.py
+# Run all automated test suites (Multi-User + Password Reset) via CLI driver
+./btool test [--env <name>]
 
-# Run individual role and feature test suites
+# Run specific suite subsets via CLI driver
+./btool test --suite admin
+./btool test --suite manager
+./btool test --suite rider
+./btool test --suite reset
+./btool test --suite multi
+
+# Run directly via Python 3 standard library
+python3 scripts/test_multi_user.py
 python3 scripts/test_admin.py
 python3 scripts/test_manager.py
 python3 scripts/test_rider.py

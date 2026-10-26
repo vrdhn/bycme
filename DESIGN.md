@@ -25,6 +25,7 @@
 * **CLI Administration (`btool`)**:
   * `./btool dbseed [--env <name>] [--dev]`: Sequential execution of `seed-*.sql` slices against D1.
   * `./btool passwd <email> [-p <pwd>] [--env <name>] [--dev]`: Updates password hash and salt for any user directly in D1.
+  * `./btool test [--env <name>] [--suite <name>] [--dev]`: Executes automated positive and negative test suite against backend.
 * **API Endpoints**:
   * Credential authentication (`/api/auth/login`), profile retrieval (`/api/auth/me`), and user listing (`/api/persons`).
 
@@ -550,7 +551,7 @@
 * `ManagerRequest`: `{ id: string, parkingId: string, personId: string, invitationId?: string, status: ManagerRequestStatus, createdAt: string, updatedAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string }` (`feat005`)
 * `RiderRequest`: `{ id: string, parkingId: string, personId: string, invitationId?: string, previousParkingId?: string, isSwitch: boolean, status: ManagerRequestStatus, createdAt: string, updatedAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string, previousParkingName?: string, previousCityName?: string }` (`feat008`)
 * `ParkingManager`: `{ id: string, parkingId: string, personId: string, assignedBy?: string, createdAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string }` (`feat005`)
-* `ParkingRider`: `{ id: string, parkingId: string, personId: string, assignedBy?: string, createdAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string }` (`feat008`)
+* `ParkingRider`: `{ id: string, parkingId: string, personId: string, assignedBy?: string, createdAt: string, parkingName?: string, cityName?: string, personName?: string, personEmail?: string, personMobile?: string, emergencyName?: string, emergencyPhone1?: string }` (`feat008, feat012`)
 * `RespondInvitationRequest`: `{ confirmSwitch?: boolean }` (`feat008`)
 * `RespondInvitationResponse`: `{ action: string, status: string, message: string, currentParkingName?: string, currentCityName?: string, targetParkingName?: string, request?: ManagerRequest, riderRequest?: RiderRequest, parkingManager?: ParkingManager, parkingRider?: ParkingRider }` (`feat005, feat008`)
 * `CycleStatus`: `"Working" | "Puncture" | "Broken"` (`feat006`)
@@ -562,6 +563,10 @@
 * `ReturnCycleRequest`: `{ condition?: CycleStatus, notes?: string }` (`feat010`)
 * `ActiveCheckoutResponse`: `{ activeCheckout?: CycleCheckout }` (`feat009`)
 * `HomeParkingResponse`: `{ parking: Parking, cycles: Cycle[], activeCheckout?: CycleCheckout }` (`feat009`)
+* `PasswordResetResponse`: `{ id: string, token: string, resetUrl: string, whatsappUrl: string, whatsappMessage: string, expiresAt: string, personName: string, personEmail: string, personMobile?: string }` (`feat014`)
+* `PasswordResetTokenInfo`: `{ valid: boolean, personName: string, personEmail: string, expiresAt: string }` (`feat014`)
+* `ExecutePasswordResetRequest`: `{ token: string, password: string }` (`feat014`)
+* `ExecutePasswordResetResponse`: `{ success: boolean, message: string }` (`feat014`)
 
 ### Endpoints Table
 
@@ -595,8 +600,8 @@
 | `feat005, fix005` | `POST` | `/api/admin/manager-requests/{id}/approve` | Approve manager request, create manager assignment, add role (Private parkings only) | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
 | `feat005` | `POST` | `/api/admin/manager-requests/{id}/reject` | Reject manager request | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
 | `feat008` | `GET` | `/api/me/parkings/{id}/rider-requests` | List rider access requests for managed stand with transfer indicator | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest[]` |
-| `feat008` | `POST` | `/api/me/parkings/{id}/rider-requests/{id}/approve` | Approve rider access request, reassign parking stand, assign Rider role | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest` |
-| `feat008` | `POST` | `/api/me/parkings/{id}/rider-requests/{id}/reject` | Reject rider access request | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest` |
+| `feat008` | `POST` | `/api/me/parkings/{id}/rider-requests/{requestId}/approve` | Approve rider access request, reassign parking stand, assign Rider role | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest` |
+| `feat008` | `POST` | `/api/me/parkings/{id}/rider-requests/{requestId}/reject` | Reject rider access request | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest` |
 | `feat008` | `GET` | `/api/me/parkings/{id}/riders` | List active authorized riders roster for managed parking stand | `Authorization: Bearer <token>` (Manager) | None | `ParkingRider[]` |
 | `fix003` | `GET` | `/api/admin/invitations` | List invitations across all parking stations with joined details | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |
 | `fix003` | `POST` | `/api/admin/invitations/{id}/revoke` | Revoke / expire invitation link immediately | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation` |

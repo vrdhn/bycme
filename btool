@@ -776,6 +776,68 @@ def run_publish_command(env_name: str = "staging") -> int:
     return 0
 
 
+def run_test_command(
+    env_name: str = "staging",
+    target_url: str | None = None,
+    suite: str = "all",
+    is_dev: bool = False,
+) -> int:
+    """Execute automated positive and negative test suite against backend."""
+    print(f"\n=== [Test] Executing Automated Test Suite ({env_name}) ===")
+
+    scripts_dir = REPO_ROOT / "scripts"
+    if not scripts_dir.exists():
+        print(f"[FAIL] Scripts directory not found at {scripts_dir}")
+        return 1
+
+    if target_url:
+        base_url = target_url
+    elif is_dev:
+        base_url = "http://localhost:8787"
+    elif env_name == "staging":
+        base_url = "https://bycme-staging.bycme-backend.workers.dev"
+    else:
+        base_url = f"https://bycme-{env_name}.bycme-backend.workers.dev"
+
+    print(f"Target URL: {base_url}")
+    print(f"Suite:      {suite}\n")
+
+    py_exe = sys.executable
+
+    test_targets: list[tuple[str, Path]] = []
+    if suite == "all":
+        test_targets = [
+            ("Multi-User End-to-End Suite", scripts_dir / "test_multi_user.py"),
+            ("Password Reset Permission Suite", scripts_dir / "test_password_reset.py"),
+        ]
+    elif suite == "admin":
+        test_targets = [("System Administrator Suite", scripts_dir / "test_admin.py")]
+    elif suite == "manager":
+        test_targets = [("Parking Manager Suite", scripts_dir / "test_manager.py")]
+    elif suite == "rider":
+        test_targets = [("Resident Rider Suite", scripts_dir / "test_rider.py")]
+    elif suite == "reset":
+        test_targets = [("Password Reset Suite", scripts_dir / "test_password_reset.py")]
+    elif suite == "multi":
+        test_targets = [("Multi-User Suite", scripts_dir / "test_multi_user.py")]
+    else:
+        print(f"[FAIL] Unknown suite '{suite}'. Options: all, admin, manager, rider, reset, multi")
+        return 1
+
+    for label, script_path in test_targets:
+        if not script_path.exists():
+            print(f"[FAIL] Test script not found: {script_path}")
+            return 1
+        print(f"--- Running {label} ({script_path.name}) ---")
+        proc = subprocess.run([py_exe, str(script_path), base_url], cwd=scripts_dir, check=False)
+        if proc.returncode != 0:
+            print(f"\n[FAIL] {label} failed with exit code {proc.returncode}.")
+            return proc.returncode
+
+    print("\n[OK] All test suites completed successfully.")
+    return 0
+
+
 def run_staging_command(env_name: str = "staging") -> int:
     """Execute complete deployment pipeline: check, codegen, build, migrate, and publish."""
     print("==================================================")
@@ -835,9 +897,10 @@ def format_custom_help() -> str:
         "  dbdrop             Drop all tables and migration state in D1 database (staging only)",
         "  dbseed             Seed D1 database from sqlsource/seeds/ (--env <name> [--dev])",
         "  passwd             Update user password in D1 database (<email> [--password <pwd>] [--dev])",
+        "  test               Execute automated test suite against backend (--env <name> [--suite <name>])",
         "",
         "Options:",
-        "  --env <name>       Target environment for migrate, publish, dbseed, and passwd (default: staging)",
+        "  --env <name>       Target environment for migrate, publish, dbseed, passwd, and test (default: staging)",
         "  --dev              Target local D1 database emulator instead of remote Cloudflare",
         "  -h, --help         Show this help message and exit",
         "",
@@ -902,6 +965,12 @@ def build_parser() -> argparse.ArgumentParser:
     passwd_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
     passwd_p.add_argument("--dev", "--local", dest="dev", action="store_true", help="Target local D1 emulator")
 
+    test_p = subparsers.add_parser("test", help="Execute automated test suite against backend")
+    test_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
+    test_p.add_argument("--url", default=None, help="Explicit backend API base URL override")
+    test_p.add_argument("--suite", default="all", choices=["all", "admin", "manager", "rider", "reset", "multi"], help="Test suite subset (default: all)")
+    test_p.add_argument("--dev", "--local", dest="dev", action="store_true", help="Target local backend emulator")
+
     subparsers.add_parser("help", help="Show categorized help and environment details")
 
     return parser
@@ -940,6 +1009,12 @@ def main() -> None:
             getattr(args, "email", ""),
             password=getattr(args, "password", None),
             env_name=target_env,
+            is_dev=is_dev,
+        ),
+        "test": lambda: run_test_command(
+            env_name=target_env,
+            target_url=getattr(args, "url", None),
+            suite=getattr(args, "suite", "all"),
             is_dev=is_dev,
         ),
     }
