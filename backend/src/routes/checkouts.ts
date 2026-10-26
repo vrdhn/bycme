@@ -232,11 +232,34 @@ export async function handleCheckoutCycle(
 
   // Create checkout session
   const checkoutId = `co-${crypto.randomUUID().slice(0, 8)}`;
-  await env.DB.prepare(
-    "INSERT INTO cycle_checkouts (id, cycle_id, person_id, parking_id, status) VALUES (?, ?, ?, ?, 'active')"
-  )
-    .bind(checkoutId, cycleId, caller.id, cycle.parking_id)
-    .run();
+  try {
+    await env.DB.prepare(
+      "INSERT INTO cycle_checkouts (id, cycle_id, person_id, parking_id, status) VALUES (?, ?, ?, ?, 'active')"
+    )
+      .bind(checkoutId, cycleId, caller.id, cycle.parking_id)
+      .run();
+  } catch (err: any) {
+    const errMsg = String(err?.message || "");
+    if (errMsg.includes("cycle_checkouts.cycle_id") || errMsg.includes("idx_cycle_checkouts_active_cycle")) {
+      return jsonResponse(
+        { error: "This cycle is currently in use by another rider." },
+        409
+      );
+    }
+    if (errMsg.includes("cycle_checkouts.person_id") || errMsg.includes("idx_cycle_checkouts_active_person")) {
+      return jsonResponse(
+        { error: "You already have an active cycle checkout. Return your active cycle before checking out another." },
+        400
+      );
+    }
+    if (errMsg.includes("UNIQUE constraint failed") || errMsg.includes("constraint")) {
+      return jsonResponse(
+        { error: "This cycle is currently in use by another rider." },
+        409
+      );
+    }
+    throw err;
+  }
 
   const coRow = await env.DB.prepare(
     "SELECT co.id, co.cycle_id, co.person_id, co.parking_id, co.checked_out_at, co.returned_at, co.status, " +
@@ -305,11 +328,16 @@ export async function handleReturnCycle(
     // Body is optional
   }
 
-  await env.DB.prepare(
-    "UPDATE cycle_checkouts SET status = 'returned', returned_at = datetime('now'), return_condition = ?, return_notes = ? WHERE id = ?"
+  const updateRes = await env.DB.prepare(
+    "UPDATE cycle_checkouts SET status = 'returned', returned_at = datetime('now'), return_condition = ?, return_notes = ? WHERE id = ? AND status = 'active'"
   )
     .bind(condition, notes, checkoutId)
     .run();
+
+  const changes = updateRes.meta?.changes ?? (updateRes as any).changes ?? 0;
+  if (changes < 1) {
+    return jsonResponse({ error: "This cycle checkout is already marked returned" }, 400);
+  }
 
   if (condition !== "Working") {
     await env.DB.prepare(

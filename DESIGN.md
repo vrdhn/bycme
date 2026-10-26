@@ -183,7 +183,7 @@
   * Resolves rider's assigned home parking stand via `GET /api/me/home-parking` and displays stationed cycles fleet.
   * Real-time cycle availability indicator (`● Ready to Ride`, `⏳ In Use`, `✕ Out of Service`).
 * **Active Checkout Session & Lock Code Security**:
-  * Strict limit of maximum 1 active cycle checkout per rider enforced at database level via unique partial index.
+  * Strict limit of maximum 1 active cycle checkout per rider and single active checkout per cycle enforced via partial unique indexes, with application-level 409 Conflict mapping on concurrent races.
   * Mechanical combination lock code (`lockCode`) is concealed and only revealed to rider upon an active checkout.
   * Active Checkout banner displays large combination lock code (`🔒 <lockCode>`) and 1-click Return action.
   * Cycle return terminates checkout and returns bicycle to home stand inventory.
@@ -293,6 +293,14 @@
   * Atomic status transition `UPDATE invitations SET status = 'used' WHERE id = ? AND status = 'active'` executed prior to role assignment and membership creation.
 * **Concurrency Conflict Guard**:
   * Returns HTTP 409 Conflict if token was concurrently claimed or is no longer in `active` state.
+
+### `fix009`: Handle Concurrent Checkout Races and Enforce Atomic Returns
+* **Active Checkout Constraint Mapping**:
+  * Maps SQLite/D1 partial unique index conflicts (`idx_cycle_checkouts_active_cycle`) cleanly to HTTP 409 Conflict ("This cycle is currently in use by another rider").
+  * Ensures duplicate simultaneous checkout attempts receive an explicit 409 error rather than unhandled server failures.
+* **Atomic Return State Transition**:
+  * `UPDATE cycle_checkouts SET status = 'returned' WHERE id = ? AND status = 'active'` guarded by atomic status condition.
+  * Rejects duplicate or replayed return requests with HTTP 400.
 
 ---
 
@@ -628,8 +636,8 @@
 | `feat006, feat009` | `GET` | `/api/cycles/lookup/{identifier}` | Search cycle by publicCycleId or qr_code (reveals lockCode only if active checkout exists) | Optional `Authorization: Bearer <token>` | None | `Cycle` |
 | `feat009` | `GET` | `/api/me/active-checkout` | Return caller's current active cycle checkout session | `Authorization: Bearer <token>` | None | `ActiveCheckoutResponse` |
 | `feat009` | `GET` | `/api/me/home-parking` | Return rider's assigned home parking stand and stationed cycles fleet | `Authorization: Bearer <token>` (Rider) | None | `HomeParkingResponse` |
-| `feat009` | `POST` | `/api/cycles/{id}/checkout` | Checkout cycle at home stand (validates 1 cycle limit, condition, home stand; reveals lock code) | `Authorization: Bearer <token>` (Rider) | None | `CycleCheckout` |
-| `feat009, feat010` | `POST` | `/api/checkouts/{id}/return` | Check-in / return cycle back to stand with damage / condition report; marks cycle out of service if damaged | `Authorization: Bearer <token>` | `ReturnCycleRequest` | `CycleCheckout` |
+| `feat009, fix009` | `POST` | `/api/cycles/{id}/checkout` | Checkout cycle at home stand (validates 1 cycle limit, condition, home stand; reveals lock code; maps concurrent checkout races to 409) | `Authorization: Bearer <token>` (Rider) | None | `CycleCheckout` |
+| `feat009, feat010, fix009` | `POST` | `/api/checkouts/{id}/return` | Check-in / return cycle back to stand with damage / condition report; marks cycle out of service if damaged (enforces atomic return transition) | `Authorization: Bearer <token>` | `ReturnCycleRequest` | `CycleCheckout` |
 | `feat014` | `POST` | `/api/persons/{id}/password-reset` | Generate password reset link and WhatsApp URL (Admin: any person; Manager: riders/managers at managed hub) | `Authorization: Bearer <token>` (Admin/Manager) | None | `PasswordResetResponse` |
 | `feat014` | `GET` | `/api/auth/reset-password/{token}` | Public validation of reset token returning recipient information | None | None | `PasswordResetTokenInfo` |
 | `feat014` | `POST` | `/api/auth/reset-password` | Public execution of password reset updating user credentials | None | `ExecutePasswordResetRequest` | `ExecutePasswordResetResponse` |
