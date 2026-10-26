@@ -22,7 +22,8 @@ Driver script: `./btool` (Python 3 standard library only).
 | `./btool dbdrop [-y]` | Drop all tables and migrations in D1 database (strictly `staging` only) |
 | `./btool dbseed [--env <name>] [--dev]` | Populate D1 database with Indian test accounts and infrastructure |
 | `./btool passwd <email> [-p <pwd>] [--env <name>] [--dev]` | Update user password hash directly in D1 database |
-| `./btool test [--env <name>] [--suite <name>] [--dev]` | Execute automated positive and negative test suite against backend |
+| `./btool devtest [--suite <name>] [--port <port>]` | Execute automated test suite locally (auto-migrates, seeds, spawns emulator, and tears down) |
+| `./btool cloudtest [--env <name>] [--suite <name>]` | Execute automated positive and negative test suite against remote Cloudflare backend |
 
 ---
 

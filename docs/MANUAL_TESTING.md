@@ -155,20 +155,28 @@
 
 ## 3. Automated Test Execution Guide
 
-The test suite runs against the backend using the `./btool test` CLI driver or directly via Python 3:
+The test suite runs against the backend using `./btool devtest` (local execution with automated migrations, seeds, and emulator lifecycle), `./btool cloudtest` (remote Cloudflare deployment), or directly via Python 3:
 
 ```bash
-# Run all automated test suites (Multi-User + Password Reset) via CLI driver
-./btool test [--env <name>]
+# 1. Local Automated Execution (DevTest)
+# Automatically runs D1 migrations, seeds test data, launches Worker emulator, and runs tests
+./btool devtest
+./btool devtest --suite admin
+./btool devtest --suite manager
+./btool devtest --suite rider
+./btool devtest --suite reset
+./btool devtest --suite multi
 
-# Run specific suite subsets via CLI driver
-./btool test --suite admin
-./btool test --suite manager
-./btool test --suite rider
-./btool test --suite reset
-./btool test --suite multi
+# 2. Remote Cloud Execution (CloudTest)
+# Runs automated suites against deployed Cloudflare Workers (default: staging)
+./btool cloudtest [--env <name>]
+./btool cloudtest --suite admin
+./btool cloudtest --suite manager
+./btool cloudtest --suite rider
+./btool cloudtest --suite reset
+./btool cloudtest --suite multi
 
-# Run directly via Python 3 standard library
+# 3. Direct Execution via Python 3 standard library
 python3 scripts/test_multi_user.py
 python3 scripts/test_admin.py
 python3 scripts/test_manager.py

@@ -25,7 +25,8 @@
 * **CLI Administration (`btool`)**:
   * `./btool dbseed [--env <name>] [--dev]`: Sequential execution of `seed-*.sql` slices against D1.
   * `./btool passwd <email> [-p <pwd>] [--env <name>] [--dev]`: Updates password hash and salt for any user directly in D1.
-  * `./btool test [--env <name>] [--suite <name>] [--dev]`: Executes automated positive and negative test suite against backend.
+  * `./btool devtest [--suite <name>] [--port <port>]`: Executes automated test suite locally with automated D1 migration, seeding, and emulator management.
+  * `./btool cloudtest [--env <name>] [--suite <name>]`: Executes automated positive and negative test suite against remote Cloudflare backend.
 * **API Endpoints**:
   * Credential authentication (`/api/auth/login`), profile retrieval (`/api/auth/me`), and user listing (`/api/persons`).
 

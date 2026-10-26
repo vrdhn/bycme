@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import time
 import urllib.request
 from pathlib import Path
 
@@ -776,31 +777,12 @@ def run_publish_command(env_name: str = "staging") -> int:
     return 0
 
 
-def run_test_command(
-    env_name: str = "staging",
-    target_url: str | None = None,
-    suite: str = "all",
-    is_dev: bool = False,
-) -> int:
-    """Execute automated positive and negative test suite against backend."""
-    print(f"\n=== [Test] Executing Automated Test Suite ({env_name}) ===")
-
+def execute_test_suites(base_url: str, suite: str = "all") -> int:
+    """Execute automated positive and negative test suite targets against target URL."""
     scripts_dir = REPO_ROOT / "scripts"
     if not scripts_dir.exists():
         print(f"[FAIL] Scripts directory not found at {scripts_dir}")
         return 1
-
-    if target_url:
-        base_url = target_url
-    elif is_dev:
-        base_url = "http://localhost:8787"
-    elif env_name == "staging":
-        base_url = "https://bycme-staging.bycme-backend.workers.dev"
-    else:
-        base_url = f"https://bycme-{env_name}.bycme-backend.workers.dev"
-
-    print(f"Target URL: {base_url}")
-    print(f"Suite:      {suite}\n")
 
     py_exe = sys.executable
 
@@ -836,6 +818,132 @@ def run_test_command(
 
     print("\n[OK] All test suites completed successfully.")
     return 0
+
+
+def run_cloudtest_command(
+    env_name: str = "staging",
+    target_url: str | None = None,
+    suite: str = "all",
+) -> int:
+    """Execute automated positive and negative test suite against remote Cloudflare backend."""
+    print(f"\n=== [CloudTest] Executing Automated Test Suite ({env_name}) ===")
+
+    if target_url:
+        base_url = target_url
+    elif env_name == "staging":
+        base_url = "https://bycme-staging.bycme-backend.workers.dev"
+    else:
+        base_url = f"https://bycme-{env_name}.bycme-backend.workers.dev"
+
+    print(f"Target URL: {base_url}")
+    print(f"Suite:      {suite}\n")
+
+    return execute_test_suites(base_url, suite=suite)
+
+
+def run_devtest_command(
+    suite: str = "all",
+    port: int = 8787,
+) -> int:
+    """Execute automated test suite locally with automated D1 migration, seeding, and emulator management."""
+    print("\n=== [DevTest] Executing Local Automated Test Suite ===")
+    print(f"Suite:      {suite}\n")
+
+    ensure_directories()
+    prepend_bin_to_path()
+
+    print("Phase 1/3: Applying migrations and seeding local D1 database ...")
+    seed_rc = run_dbseed_command(is_dev=True)
+    if seed_rc != 0:
+        print("[FAIL] Local database migration/seeding failed.")
+        return seed_rc
+
+    # Check if local backend is already running and healthy
+    already_running = False
+    try:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/health",
+            headers={"User-Agent": "BycmeClient/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=1.0) as resp:
+            if resp.status == 200:
+                already_running = True
+    except Exception:
+        already_running = False
+
+    worker_proc = None
+    if already_running:
+        print(f"Phase 2/3: Using existing running emulator at http://127.0.0.1:{port}")
+    else:
+        print(f"Phase 2/3: Launching backend Worker emulator on port {port} ...")
+        wrangler_path = shutil.which("wrangler") or str(BIN_DIR / "wrangler")
+        backend_dir = REPO_ROOT / "backend"
+        env = {
+            **os.environ,
+            "PATH": f"{BIN_DIR}:{os.environ.get('PATH', '')}",
+            "CI": "true",
+        }
+        cmd = [
+            wrangler_path,
+            "dev",
+            "--port",
+            str(port),
+            "--ip",
+            "127.0.0.1",
+        ]
+        worker_proc = subprocess.Popen(
+            cmd,
+            cwd=backend_dir,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+
+        server_ready = False
+        start_wait = time.time()
+        timeout = 25.0
+        while time.time() - start_wait < timeout:
+            if worker_proc.poll() is not None:
+                err_text = worker_proc.stderr.read().decode("utf-8", errors="replace") if worker_proc.stderr else ""
+                print(f"[FAIL] Backend emulator terminated unexpectedly:\n{err_text}")
+                return 1
+            try:
+                req = urllib.request.Request(
+                    f"http://127.0.0.1:{port}/api/health",
+                    headers={"User-Agent": "BycmeClient/1.0"},
+                )
+                with urllib.request.urlopen(req, timeout=1.0) as resp:
+                    if resp.status == 200:
+                        server_ready = True
+                        break
+            except Exception:
+                pass
+            time.sleep(0.5)
+
+        if not server_ready:
+            print(f"[FAIL] Local backend emulator failed to respond within {timeout}s.")
+            worker_proc.terminate()
+            try:
+                worker_proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                worker_proc.kill()
+            return 1
+
+        print("[OK] Backend Worker emulator is ready.")
+
+    print(f"\nPhase 3/3: Running test suite against http://127.0.0.1:{port} ...\n")
+    try:
+        return execute_test_suites(f"http://127.0.0.1:{port}", suite=suite)
+    finally:
+        if worker_proc:
+            print("\nShutting down backend Worker emulator ...")
+            worker_proc.terminate()
+            try:
+                worker_proc.wait(timeout=4)
+            except subprocess.TimeoutExpired:
+                worker_proc.kill()
+                worker_proc.wait(timeout=2)
+            print("[OK] Backend Worker emulator stopped.")
 
 
 def run_staging_command(env_name: str = "staging") -> int:
@@ -897,10 +1005,13 @@ def format_custom_help() -> str:
         "  dbdrop             Drop all tables and migration state in D1 database (staging only)",
         "  dbseed             Seed D1 database from sqlsource/seeds/ (--env <name> [--dev])",
         "  passwd             Update user password in D1 database (<email> [--password <pwd>] [--dev])",
-        "  test               Execute automated test suite against backend (--env <name> [--suite <name>])",
+        "",
+        "Testing:",
+        "  devtest            Execute automated tests locally (auto-migrates, seeds, starts emulator & runs suite)",
+        "  cloudtest          Execute automated test suite against remote Cloudflare backend (--env <name> [--suite <name>])",
         "",
         "Options:",
-        "  --env <name>       Target environment for migrate, publish, dbseed, passwd, and test (default: staging)",
+        "  --env <name>       Target environment for migrate, publish, dbseed, passwd, and cloudtest (default: staging)",
         "  --dev              Target local D1 database emulator instead of remote Cloudflare",
         "  -h, --help         Show this help message and exit",
         "",
@@ -965,11 +1076,19 @@ def build_parser() -> argparse.ArgumentParser:
     passwd_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
     passwd_p.add_argument("--dev", "--local", dest="dev", action="store_true", help="Target local D1 emulator")
 
-    test_p = subparsers.add_parser("test", help="Execute automated test suite against backend")
+    devtest_p = subparsers.add_parser("devtest", help="Execute automated test suite locally against automated emulator with migrations and seeds")
+    devtest_p.add_argument("--suite", default="all", choices=["all", "admin", "manager", "rider", "reset", "multi"], help="Test suite subset (default: all)")
+    devtest_p.add_argument("--port", type=int, default=8787, help="Port for local emulator (default: 8787)")
+
+    cloudtest_p = subparsers.add_parser("cloudtest", help="Execute automated test suite against remote Cloudflare backend")
+    cloudtest_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
+    cloudtest_p.add_argument("--url", default=None, help="Explicit backend API base URL override")
+    cloudtest_p.add_argument("--suite", default="all", choices=["all", "admin", "manager", "rider", "reset", "multi"], help="Test suite subset (default: all)")
+
+    test_p = subparsers.add_parser("test", help="Alias for cloudtest")
     test_p.add_argument("--env", default="staging", help="Target environment (default: staging)")
     test_p.add_argument("--url", default=None, help="Explicit backend API base URL override")
     test_p.add_argument("--suite", default="all", choices=["all", "admin", "manager", "rider", "reset", "multi"], help="Test suite subset (default: all)")
-    test_p.add_argument("--dev", "--local", dest="dev", action="store_true", help="Target local backend emulator")
 
     subparsers.add_parser("help", help="Show categorized help and environment details")
 
@@ -1011,11 +1130,19 @@ def main() -> None:
             env_name=target_env,
             is_dev=is_dev,
         ),
-        "test": lambda: run_test_command(
+        "devtest": lambda: run_devtest_command(
+            suite=getattr(args, "suite", "all"),
+            port=getattr(args, "port", 8787),
+        ),
+        "cloudtest": lambda: run_cloudtest_command(
             env_name=target_env,
             target_url=getattr(args, "url", None),
             suite=getattr(args, "suite", "all"),
-            is_dev=is_dev,
+        ),
+        "test": lambda: run_cloudtest_command(
+            env_name=target_env,
+            target_url=getattr(args, "url", None),
+            suite=getattr(args, "suite", "all"),
         ),
     }
 
