@@ -133,6 +133,23 @@
 
 ---
 
+### 2.10 Password Reset & Recovery Flows (`feat014`)
+
+| Test ID | Persona | Type | Description | Steps / Inputs | Expected Result |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **RST-P01** | Admin | Positive | Admin generates reset link for any person | Admin clicks "🔑 Reset Pwd" on user in Person Directory | Returns `200 OK` with 24h single-use token, reset link, and `wa.me` URL |
+| **RST-P02** | Manager | Positive | Manager generates reset link for rider in managed hub | Manager clicks "🔑 Reset Pwd" in Hub Riders table | Returns `200 OK` with reset link and `wa.me` URL |
+| **RST-N01** | Manager | Negative | Manager attempts reset for person outside managed hub | Call `POST /api/persons/{id}/password-reset` for rider from unmanaged hub | Returns `403 Forbidden` |
+| **RST-N02** | Rider | Negative | Rider attempts to generate password reset link | Call `POST /api/persons/{id}/password-reset` with rider session token | Returns `403 Forbidden` |
+| **RST-N03** | Unauthenticated | Negative | Anonymous attempt to generate reset link | Call `POST /api/persons/{id}/password-reset` without session token | Returns `401 Unauthorized` |
+| **RST-P03** | Public | Positive | Public verification of valid reset token | Call `GET /api/auth/reset-password/{token}` | Returns `200 OK` with `valid: true`, recipient name, and email |
+| **RST-N04** | Public | Negative | Verification of invalid / expired / consumed token | Call `GET /api/auth/reset-password/{token}` with invalid token | Returns `404 Not Found` or `400 Bad Request` |
+| **RST-P04** | Public | Positive | Execute password reset with valid token | Submit `POST /api/auth/reset-password` with token and new password (>=6 chars) | Returns `200 OK`; credentials updated; token marked consumed |
+| **RST-N05** | Public | Negative | Re-execute password reset using already consumed token | Submit `POST /api/auth/reset-password` with same token again | Returns `400 Bad Request` |
+| **RST-N06** | Public | Negative | Execute password reset with short password | Submit `POST /api/auth/reset-password` with password shorter than 6 chars | Returns `400 Bad Request` ("Password must be at least 6 characters") |
+
+---
+
 ## 3. Automated Test Execution Guide
 
 The test suite runs against the staging backend using Python 3 standard library:
@@ -141,8 +158,9 @@ The test suite runs against the staging backend using Python 3 standard library:
 # Run complete multi-user test suite (all personas and cross-actor flows)
 python3 scripts/test_multi_user.py
 
-# Run individual role test suites
+# Run individual role and feature test suites
 python3 scripts/test_admin.py
 python3 scripts/test_manager.py
 python3 scripts/test_rider.py
+python3 scripts/test_password_reset.py
 ```

@@ -81,6 +81,35 @@ model LoginResponse {
   user: Person;
 }
 
+model PasswordResetResponse {
+  id: string;
+  token: string;
+  resetUrl: string;
+  whatsappUrl: string;
+  whatsappMessage: string;
+  expiresAt: string;
+  personName: string;
+  personEmail: string;
+  personMobile?: string;
+}
+
+model PasswordResetTokenInfo {
+  valid: boolean;
+  personName: string;
+  personEmail: string;
+  expiresAt: string;
+}
+
+model ExecutePasswordResetRequest {
+  token: string;
+  password: string;
+}
+
+model ExecutePasswordResetResponse {
+  success: boolean;
+  message: string;
+}
+
 model City {
   id: string;
   name: string;
@@ -600,4 +629,23 @@ namespace Endpoints {
     @body body?: ReturnCycleRequest,
     @header authorization?: string
   ): CycleCheckout;
+
+  @post
+  @route("/persons/{id}/password-reset")
+  op createPasswordReset(
+    @path id: string,
+    @header authorization?: string
+  ): PasswordResetResponse;
+
+  @get
+  @route("/auth/reset-password/{token}")
+  op getPasswordResetTokenInfo(
+    @path token: string
+  ): PasswordResetTokenInfo;
+
+  @post
+  @route("/auth/reset-password")
+  op executePasswordReset(
+    @body body: ExecutePasswordResetRequest
+  ): ExecutePasswordResetResponse;
 }

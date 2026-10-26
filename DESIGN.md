@@ -262,6 +262,21 @@
   * Backend Worker validation: `POST /api/parkings/{id}/cycles` and `PUT /api/cycles/{id}` verify lock code uniqueness in target hub before insert/update, returning a 400 error if duplicated.
   * Frontend pre-validation: Add and Edit cycle modals in HubHero workspace assert lock code uniqueness against local inventory before submission.
 
+### `feat014`: Password Reset via WhatsApp Links
+* **Out-of-Band Password Recovery**:
+  * Single-use, time-limited reset links (24-hour expiry) avoiding third-party email delivery infrastructure.
+  * WhatsApp direct link format (`https://wa.me/<mobile>?text=<message>`) pre-populated with recipient mobile number and formatted copy.
+* **Role-Scoped Reset Permissions**:
+  * System Admin (ClubHero): Authorized to generate password reset links for any person in the system via `POST /api/persons/{id}/password-reset`.
+  * Parking Manager (HubHero): Authorized to generate password reset links exclusively for persons associated with their managed parking hub(s) (verified against `parking_riders` and `parking_managers`). Cross-hub attempts return 403 Forbidden.
+  * Non-managers / Riders / Unauthenticated: Blocked from generating reset links.
+* **Public Token Validation & Credential Update**:
+  * `GET /api/auth/reset-password/{token}`: Public verification endpoint returning recipient name, email, and validity.
+  * `POST /api/auth/reset-password`: Public credential update endpoint hashing new password via PBKDF2-HMAC-SHA256 (100,000 iterations, 32-byte salt) and marking token consumed (`used_at = CURRENT_TIMESTAMP`).
+* **Frontend GUI Integration**:
+  * `PasswordResetModal`: Modal displayed in ClubHero directory and HubHero riders roster with copyable URL and direct `wa.me` share button.
+  * `ResetPasswordLanding`: Public SPA view at `/#/reset-password/<token>` for credential setting and redirection to login.
+
 ---
 
 ## 2. Database
@@ -456,6 +471,21 @@
   * `idx_cycle_checkouts_parking` on `cycle_checkouts(parking_id, status)` (`feat009`)
   * `idx_cycle_checkouts_person` on `cycle_checkouts(person_id, status)` (`feat009`)
 
+#### Table: `password_resets`
+| Column | Type | Constraints | Description | Feature |
+| :--- | :--- | :--- | :--- | :--- |
+| `id` | `TEXT` | `PRIMARY KEY` | Unique reset request identifier | `feat014` |
+| `person_id` | `TEXT` | `NOT NULL REFERENCES persons(id) ON DELETE CASCADE` | Target user foreign key | `feat014` |
+| `token` | `TEXT` | `UNIQUE NOT NULL` | 22-character unpadded base64url random UUID token | `feat014` |
+| `created_by` | `TEXT` | `NOT NULL REFERENCES persons(id)` | Admin or Manager who generated the link | `feat014` |
+| `expires_at` | `DATETIME` | `NOT NULL` | Expiry timestamp (24h default) | `feat014` |
+| `used_at` | `DATETIME` | | Timestamp when reset was executed | `feat014` |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Record creation timestamp | `feat014` |
+
+* **Indexes**:
+  * `idx_password_resets_token` on `password_resets(token)` (`feat014`)
+  * `idx_password_resets_person` on `password_resets(person_id)` (`feat014`)
+
 ### Migrations
 | Migration | Description | Feature |
 | :--- | :--- | :--- |
@@ -470,6 +500,7 @@
 | `sqlsource/migrations/0009_damage_reporting.sql` | Cycle checkout damage and condition reporting on return | `feat010` |
 | `sqlsource/migrations/0010_person_details.sql` | Add personal details and emergency contact to persons | `feat012` |
 | `sqlsource/migrations/0011_unique_parking_lock_code.sql` | Ensure unique combination lock code per parking stand | `feat013` |
+| `sqlsource/migrations/0012_password_resets.sql` | Password reset tokens table and indexes | `feat014` |
 
 ### Seed Files
 | Seed File | Description | Feature |
@@ -481,6 +512,7 @@
 | `sqlsource/seeds/seed-005-cycles.sql` | Baseline fleet stationed at `prk-tm-tower-a` | `feat006` |
 | `sqlsource/seeds/seed-006-riders.sql` | Sample active riders (`kavita@bycme.in`, `rahim@bycme.in`), pending transfer (`deepak@bycme.in`), and active rider invitation | `feat008` |
 | `sqlsource/seeds/seed-007-checkouts.sql` | Active sample cycle checkout session for `kavita@bycme.in` | `feat009` |
+| `sqlsource/seeds/seed-008-password-resets.sql` | Active sample password reset token | `feat014` |
 
 ---
 
@@ -577,6 +609,9 @@
 | `feat009` | `GET` | `/api/me/home-parking` | Return rider's assigned home parking stand and stationed cycles fleet | `Authorization: Bearer <token>` (Rider) | None | `HomeParkingResponse` |
 | `feat009` | `POST` | `/api/cycles/{id}/checkout` | Checkout cycle at home stand (validates 1 cycle limit, condition, home stand; reveals lock code) | `Authorization: Bearer <token>` (Rider) | None | `CycleCheckout` |
 | `feat009, feat010` | `POST` | `/api/checkouts/{id}/return` | Check-in / return cycle back to stand with damage / condition report; marks cycle out of service if damaged | `Authorization: Bearer <token>` | `ReturnCycleRequest` | `CycleCheckout` |
+| `feat014` | `POST` | `/api/persons/{id}/password-reset` | Generate password reset link and WhatsApp URL (Admin: any person; Manager: riders/managers at managed hub) | `Authorization: Bearer <token>` (Admin/Manager) | None | `PasswordResetResponse` |
+| `feat014` | `GET` | `/api/auth/reset-password/{token}` | Public validation of reset token returning recipient information | None | None | `PasswordResetTokenInfo` |
+| `feat014` | `POST` | `/api/auth/reset-password` | Public execution of password reset updating user credentials | None | `ExecutePasswordResetRequest` | `ExecutePasswordResetResponse` |
 
 ---
 
@@ -587,3 +622,4 @@
 | `/#/join/mgr/<token>` | Manager invitation landing page (login/register + claim or request management) | `feat004, feat005` | Prospective Manager |
 | `/#/join/rider/<token>` | Rider invitation landing page (login/register + claim or request rider access with single-shed transfer confirmation) | `feat008` | Prospective / Existing Rider |
 | `/#/cycle/<qr_code>` | Cycle QR code lookup and scan-to-ride portal (view status, login/register, validate, and unlock) | `feat009` | Authorized Resident Rider |
+| `/#/reset-password/<token>` | Password reset landing page (inspect token, input new password, and proceed to login) | `feat014` | User resetting forgotten password |

@@ -67,6 +67,35 @@ export interface LoginResponse {
   user: Person;
 }
 
+export interface PasswordResetResponse {
+  id: string;
+  token: string;
+  resetUrl: string;
+  whatsappUrl: string;
+  whatsappMessage: string;
+  expiresAt: string;
+  personName: string;
+  personEmail: string;
+  personMobile?: string;
+}
+
+export interface PasswordResetTokenInfo {
+  valid: boolean;
+  personName: string;
+  personEmail: string;
+  expiresAt: string;
+}
+
+export interface ExecutePasswordResetRequest {
+  token: string;
+  password: string;
+}
+
+export interface ExecutePasswordResetResponse {
+  success: boolean;
+  message: string;
+}
+
 export interface City {
   id: string;
   name: string;
@@ -751,6 +780,26 @@ export class BycmeClient {
       method: "POST",
       headers,
       body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  createPasswordReset(personId: string, token: string): Promise<PasswordResetResponse> {
+    return this.request<PasswordResetResponse>(`/api/persons/${encodeURIComponent(personId)}/password-reset`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  }
+
+  getPasswordResetTokenInfo(resetToken: string): Promise<PasswordResetTokenInfo> {
+    return this.request<PasswordResetTokenInfo>(`/api/auth/reset-password/${encodeURIComponent(resetToken)}`);
+  }
+
+  executePasswordReset(body: ExecutePasswordResetRequest): Promise<ExecutePasswordResetResponse> {
+    return this.request<ExecutePasswordResetResponse>("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify(body),
     });
   }
 }

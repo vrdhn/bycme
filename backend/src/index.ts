@@ -7,6 +7,7 @@ import { Env } from "./types";
 import { CORS_HEADERS, jsonResponse } from "./utils/response";
 import { handleHealthRoutes } from "./routes/health";
 import { handleAuthRoutes } from "./routes/auth";
+import { handlePasswordResetRoutes } from "./routes/passwordReset";
 import { handleLocationsRoutes } from "./routes/locations";
 import { handleInvitationsRoutes } from "./routes/invitations";
 import { handleManagerRequestsRoutes } from "./routes/managerRequests";
@@ -32,6 +33,10 @@ export default {
       // 2. Auth & Person directory routes
       const authRes = await handleAuthRoutes(request, env, url);
       if (authRes) return authRes;
+
+      // 2b. Password reset routes
+      const pwdResetRes = await handlePasswordResetRoutes(request, env, url);
+      if (pwdResetRes) return pwdResetRes;
 
       // 3. Location routes (Cities, Buildings, Parkings)
       const locRes = await handleLocationsRoutes(request, env, url);

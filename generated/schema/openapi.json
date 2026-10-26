@@ -298,6 +298,61 @@
         }
       }
     },
+    "/api/auth/reset-password": {
+      "post": {
+        "operationId": "Endpoints_executePasswordReset",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutePasswordResetResponse"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExecutePasswordResetRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/reset-password/{token}": {
+      "get": {
+        "operationId": "Endpoints_getPasswordResetTokenInfo",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordResetTokenInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/buildings": {
       "get": {
         "operationId": "Endpoints_listBuildings",
@@ -1540,6 +1595,41 @@
           }
         }
       }
+    },
+    "/api/persons/{id}/password-reset": {
+      "post": {
+        "operationId": "Endpoints_createPasswordReset",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordResetResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1862,6 +1952,36 @@
             "type": "string"
           },
           "phone2": {
+            "type": "string"
+          }
+        }
+      },
+      "ExecutePasswordResetRequest": {
+        "type": "object",
+        "required": [
+          "token",
+          "password"
+        ],
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "ExecutePasswordResetResponse": {
+        "type": "object",
+        "required": [
+          "success",
+          "message"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "message": {
             "type": "string"
           }
         }
@@ -2234,6 +2354,71 @@
             "type": "string"
           },
           "emergencyPhone1": {
+            "type": "string"
+          }
+        }
+      },
+      "PasswordResetResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "token",
+          "resetUrl",
+          "whatsappUrl",
+          "whatsappMessage",
+          "expiresAt",
+          "personName",
+          "personEmail"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          },
+          "resetUrl": {
+            "type": "string"
+          },
+          "whatsappUrl": {
+            "type": "string"
+          },
+          "whatsappMessage": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          },
+          "personName": {
+            "type": "string"
+          },
+          "personEmail": {
+            "type": "string"
+          },
+          "personMobile": {
+            "type": "string"
+          }
+        }
+      },
+      "PasswordResetTokenInfo": {
+        "type": "object",
+        "required": [
+          "valid",
+          "personName",
+          "personEmail",
+          "expiresAt"
+        ],
+        "properties": {
+          "valid": {
+            "type": "boolean"
+          },
+          "personName": {
+            "type": "string"
+          },
+          "personEmail": {
+            "type": "string"
+          },
+          "expiresAt": {
             "type": "string"
           }
         }

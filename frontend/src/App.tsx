@@ -11,6 +11,8 @@ import { RiderWorkspaceView } from "./components/RiderWorkspaceView";
 import { CycleQrPortal } from "./components/CycleQrPortal";
 import { UserProfileModal } from "./components/UserProfileModal";
 import { AdminEditPersonModal } from "./components/AdminEditPersonModal";
+import { PasswordResetModal } from "./components/PasswordResetModal";
+import { ResetPasswordLanding } from "./components/ResetPasswordLanding";
 
 const API_BASE = "https://bycme-staging.bycme-backend.workers.dev";
 const client = new BycmeClient(API_BASE);
@@ -25,6 +27,15 @@ export default function App() {
   const [loadingPersons, setLoadingPersons] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editingPerson, setEditingPerson] = useState<Person | null>(null);
+  const [resettingPerson, setResettingPerson] = useState<Person | null>(null);
+
+  const [resetToken, setResetToken] = useState<string | null>(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith("#/reset-password/")) {
+      return hash.replace("#/reset-password/", "").trim();
+    }
+    return null;
+  });
 
   const [inviteToken, setInviteToken] = useState<string | null>(() => {
     const hash = window.location.hash;
@@ -51,15 +62,23 @@ export default function App() {
       if (hash.startsWith("#/join/mgr/")) {
         setInviteToken(hash.replace("#/join/mgr/", "").trim());
         setCycleQrCode(null);
+        setResetToken(null);
       } else if (hash.startsWith("#/join/rider/")) {
         setInviteToken(hash.replace("#/join/rider/", "").trim());
         setCycleQrCode(null);
+        setResetToken(null);
       } else if (hash.startsWith("#/cycle/")) {
         setCycleQrCode(hash.replace("#/cycle/", "").trim());
         setInviteToken(null);
+        setResetToken(null);
+      } else if (hash.startsWith("#/reset-password/")) {
+        setResetToken(hash.replace("#/reset-password/", "").trim());
+        setInviteToken(null);
+        setCycleQrCode(null);
       } else {
         setInviteToken(null);
         setCycleQrCode(null);
+        setResetToken(null);
       }
     };
     window.addEventListener("hashchange", handleHashChange);
@@ -189,6 +208,38 @@ export default function App() {
           onBackToLanding={() => {
             window.location.hash = "";
             setCycleQrCode(null);
+            setView("home");
+          }}
+        />
+      </>
+    );
+  }
+
+  if (resetToken) {
+    return (
+      <>
+        <StatusBar
+          apiClient={client}
+          currentUser={currentUser}
+          onBrandClick={() => {
+            window.location.hash = "";
+            setResetToken(null);
+            setView("home");
+          }}
+          onLogout={handleLogout}
+          onOpenProfile={() => setShowProfileModal(true)}
+        />
+        <ResetPasswordLanding
+          apiClient={client}
+          token={resetToken}
+          onSuccess={() => {
+            window.location.hash = "";
+            setResetToken(null);
+            setView("login");
+          }}
+          onCancel={() => {
+            window.location.hash = "";
+            setResetToken(null);
             setView("home");
           }}
         />
@@ -478,14 +529,30 @@ export default function App() {
                                   {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-"}
                                 </td>
                                 <td>
-                                  <button
-                                    className="btn-secondary"
-                                    style={{ width: "auto", padding: "0.2rem 0.55rem", fontSize: "0.75rem" }}
-                                    onClick={() => setEditingPerson(p)}
-                                    title="Edit user details"
-                                  >
-                                    ✏️ Edit
-                                  </button>
+                                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                                    <button
+                                      className="btn-secondary"
+                                      style={{ width: "auto", padding: "0.2rem 0.55rem", fontSize: "0.75rem" }}
+                                      onClick={() => setEditingPerson(p)}
+                                      title="Edit user details"
+                                    >
+                                      ✏️ Edit
+                                    </button>
+                                    <button
+                                      className="btn-text"
+                                      style={{
+                                        width: "auto",
+                                        padding: "0.2rem 0.55rem",
+                                        fontSize: "0.75rem",
+                                        color: "var(--primary-color)",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                      onClick={() => setResettingPerson(p)}
+                                      title="Generate WhatsApp password reset link"
+                                    >
+                                      🔑 Reset Pwd
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -526,6 +593,18 @@ export default function App() {
             );
             if (currentUser?.id === updated.id) setCurrentUser(updated);
           }}
+        />
+      )}
+
+      {resettingPerson && authToken && (
+        <PasswordResetModal
+          apiClient={client}
+          personId={resettingPerson.id}
+          personName={resettingPerson.name}
+          personEmail={resettingPerson.email}
+          personMobile={resettingPerson.mobile}
+          token={authToken}
+          onClose={() => setResettingPerson(null)}
         />
       )}
     </>

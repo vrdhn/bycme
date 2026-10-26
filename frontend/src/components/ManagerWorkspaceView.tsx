@@ -8,6 +8,7 @@ import {
   RiderRequest,
   ManagerInvitation,
 } from "../../../generated/shared";
+import { PasswordResetModal } from "./PasswordResetModal";
 
 interface ManagerWorkspaceViewProps {
   apiClient: BycmeClient;
@@ -28,6 +29,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
   // Riders state
   const [riders, setRiders] = useState<ParkingRider[]>([]);
   const [riderRequests, setRiderRequests] = useState<RiderRequest[]>([]);
+  const [resettingRider, setResettingRider] = useState<ParkingRider | null>(null);
   const [riderInvites, setRiderInvites] = useState<ManagerInvitation[]>([]);
   const [ridersLoading, setRidersLoading] = useState(false);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
@@ -764,6 +766,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                       <th style={{ padding: "0.6rem 0.75rem" }}>Emergency Contact</th>
                       <th style={{ padding: "0.6rem 0.75rem" }}>Enrolled Date</th>
                       <th style={{ padding: "0.6rem 0.75rem" }}>Status</th>
+                      <th style={{ padding: "0.6rem 0.75rem" }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -791,6 +794,22 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
                           >
                             ACTIVE
                           </span>
+                        </td>
+                        <td style={{ padding: "0.6rem 0.75rem" }}>
+                          <button
+                            type="button"
+                            className="btn-text"
+                            style={{
+                              fontSize: "0.75rem",
+                              padding: "0.2rem 0.4rem",
+                              color: "var(--primary-color)",
+                              whiteSpace: "nowrap",
+                            }}
+                            onClick={() => setResettingRider(r)}
+                            title="Generate WhatsApp password reset link"
+                          >
+                            🔑 Reset Pwd
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1354,6 +1373,18 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
             )}
           </div>
         </div>
+      )}
+
+      {resettingRider && token && (
+        <PasswordResetModal
+          apiClient={apiClient}
+          personId={resettingRider.personId}
+          personName={resettingRider.personName || "Hub Rider"}
+          personEmail={resettingRider.personEmail || ""}
+          personMobile={resettingRider.personMobile}
+          token={token}
+          onClose={() => setResettingRider(null)}
+        />
       )}
     </div>
   );
