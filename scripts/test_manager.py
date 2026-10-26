@@ -45,6 +45,14 @@ def run_manager_tests(base_url: str = "") -> bool:
     res = client.get("/api/me/parkings/prk-gw-gate1/rider-requests")
     assert_test("Read Pending Rider Requests (200 OK)", res.status == 200 and isinstance(res.data, list))
 
+    # Negative: Approve non-existent rider request (404)
+    res = client.post("/api/me/parkings/prk-gw-gate1/rider-requests/req-non-existent/approve")
+    assert_test("Approve Non-Existent Rider Request Blocked (404)", res.status == 404)
+
+    # Negative: Reject non-existent rider request (404)
+    res = client.post("/api/me/parkings/prk-gw-gate1/rider-requests/req-non-existent/reject")
+    assert_test("Reject Non-Existent Rider Request Blocked (404)", res.status == 404)
+
     # Positive: Read registered riders at managed stand
     res = client.get("/api/me/parkings/prk-gw-gate1/riders")
     assert_test("Read Registered Riders (200 OK)", res.status == 200 and isinstance(res.data, list))

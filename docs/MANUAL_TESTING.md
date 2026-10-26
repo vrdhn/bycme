@@ -60,6 +60,7 @@
 | **MGR-P04** | Admin | Positive | Approve pending manager request | Open ClubHero Console -> HubHero Requests -> Click Approve | Request status `approved`, stand assigned to manager |
 | **MGR-N01** | Any | Negative | Claim expired or revoked invitation | Visit `/#/join/mgr/<token>` for revoked/expired token | Returns `404 Not Found` with expiry alert banner |
 | **MGR-N02** | Manager | Negative | Manager generates invite for unmanaged stand | Anita (`prk-gw-gate1`) calls POST on `prk-palm-east` | Returns `403 Forbidden` |
+| **MGR-N03** | Admin | Negative | Approve or reject non-pending request | Attempt approve/reject on already processed manager request | Returns `400 Bad Request` or `409 Conflict` |
 
 ---
 
@@ -73,6 +74,7 @@
 | **RDR-P04** | Existing Rider | Positive | Switch parking stand with confirmation | Rahim (at Clubhouse) opens Gate 1 invite, confirms switch dialog | Old stand deleted, new stand assigned in single atomic transaction |
 | **RDR-N01** | Existing Rider | Negative | Switch parking stand without confirmation | Rahim opens Gate 1 invite without setting `confirmSwitch: true` | Action `switch_required` returned, presents Switch Confirmation modal |
 | **RDR-N02** | Any | Negative | Respond to already used or revoked invitation | Submit respond call to already redeemed/revoked token | Returns `404 Not Found` or `409 Conflict`, prevents double-redemption |
+| **RDR-N03** | Manager | Negative | Approve or reject non-pending rider request | Attempt approve/reject on already processed rider request | Returns `400 Bad Request` or `409 Conflict` |
 
 ---
 

@@ -89,7 +89,7 @@
   * Standard invitation submission generates a `pending` request, displaying existing application status to prevent duplicates.
 * **Admin Management Console ("Requests" Tab)**:
   * Admin workspace tab for reviewing all manager requests across parkings.
-  * Single-click Approve (marks request `approved`, grants `Manager` role, binds to `parking_managers`) and Reject (marks request `rejected`).
+  * Single-click Approve (marks request `approved`, grants `Manager` role, binds to `parking_managers`) and Reject (marks request `rejected`) guarded by atomic `status = 'pending'` conditional updates to prevent concurrent race overwrites.
 
 ### `fix003`: Admin Invitations Console & Parking Context
 * **Parking Station Context on Modal List**:
@@ -174,6 +174,7 @@
   * Managers review pending rider requests with visual badges indicating new rider vs shed transfer.
   * Approving a transfer atomically revokes the rider's previous parking stand membership and enrolls them in the new stand.
   * Rejecting marks the request rejected without altering existing memberships.
+  * Both approve and reject operations enforce atomic `status = 'pending'` conditions to prevent concurrent race collisions.
 * **Active Riders Directory**:
   * Real-time roster of authorized riders for each parking station.
 
@@ -301,6 +302,14 @@
 * **Atomic Return State Transition**:
   * `UPDATE cycle_checkouts SET status = 'returned' WHERE id = ? AND status = 'active'` guarded by atomic status condition.
   * Rejects duplicate or replayed return requests with HTTP 400.
+
+### `fix010`: Enforce Atomic Optimistic Locking on Request State Transitions
+* **Optimistic Locking Guard**:
+  * Conditional `status = 'pending'` check on manager request approval (`POST /api/admin/manager-requests/{id}/approve`) and rejection (`POST /api/admin/manager-requests/{id}/reject`).
+  * Conditional `status = 'pending'` check on rider request approval (`POST /api/me/parkings/{id}/rider-requests/{requestId}/approve`) and rejection (`POST /api/me/parkings/{id}/rider-requests/{requestId}/reject`).
+* **Concurrency Conflict Guard**:
+  * Returns HTTP 409 Conflict if request was concurrently approved, rejected, or modified by another actor.
+  * Validates current status returning HTTP 400 if request is already non-pending.
 
 ---
 
@@ -621,11 +630,11 @@
 | `feat005, fix005, feat008, fix008` | `POST` | `/api/invitations/{token}/respond` | Submit manager/rider request or claim assignment; detects and confirms shed transfer (enforces atomic redemption for pre-approved invitations) | `Authorization: Bearer <token>` | `RespondInvitationRequest` | `RespondInvitationResponse` |
 | `feat005` | `GET` | `/api/me/manager-requests` | List current user's submitted manager requests | `Authorization: Bearer <token>` | None | `ManagerRequest[]` |
 | `feat005` | `GET` | `/api/admin/manager-requests` | List all submitted manager requests across parkings | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest[]` |
-| `feat005, fix005` | `POST` | `/api/admin/manager-requests/{id}/approve` | Approve manager request, create manager assignment, add role (Private parkings only) | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
-| `feat005` | `POST` | `/api/admin/manager-requests/{id}/reject` | Reject manager request | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
+| `feat005, fix005, fix010` | `POST` | `/api/admin/manager-requests/{id}/approve` | Approve manager request, create manager assignment, add role (enforces atomic optimistic locking) | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
+| `feat005, fix010` | `POST` | `/api/admin/manager-requests/{id}/reject` | Reject manager request (enforces atomic optimistic locking) | `Authorization: Bearer <token>` (Admin) | None | `ManagerRequest` |
 | `feat008` | `GET` | `/api/me/parkings/{id}/rider-requests` | List rider access requests for managed stand with transfer indicator | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest[]` |
-| `feat008` | `POST` | `/api/me/parkings/{id}/rider-requests/{requestId}/approve` | Approve rider access request, reassign parking stand, assign Rider role | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest` |
-| `feat008` | `POST` | `/api/me/parkings/{id}/rider-requests/{requestId}/reject` | Reject rider access request | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest` |
+| `feat008, fix010` | `POST` | `/api/me/parkings/{id}/rider-requests/{requestId}/approve` | Approve rider access request, reassign parking stand, assign Rider role (enforces atomic optimistic locking) | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest` |
+| `feat008, fix010` | `POST` | `/api/me/parkings/{id}/rider-requests/{requestId}/reject` | Reject rider access request (enforces atomic optimistic locking) | `Authorization: Bearer <token>` (Manager) | None | `RiderRequest` |
 | `feat008` | `GET` | `/api/me/parkings/{id}/riders` | List active authorized riders roster for managed parking stand | `Authorization: Bearer <token>` (Manager) | None | `ParkingRider[]` |
 | `fix003` | `GET` | `/api/admin/invitations` | List invitations across all parking stations with joined details | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation[]` |
 | `fix003` | `POST` | `/api/admin/invitations/{id}/revoke` | Revoke / expire invitation link immediately | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation` |

@@ -76,6 +76,14 @@ def run_admin_tests(base_url: str = "") -> bool:
     res = client.get("/api/admin/manager-requests")
     assert_test("Read Manager Requests (200 OK)", res.status == 200 and isinstance(res.data, list))
 
+    # Negative: Approve non-existent manager request (404)
+    res = client.post("/api/admin/manager-requests/req-non-existent/approve")
+    assert_test("Approve Non-Existent Request Rejected (404)", res.status == 404)
+
+    # Negative: Reject non-existent manager request (404)
+    res = client.post("/api/admin/manager-requests/req-non-existent/reject")
+    assert_test("Reject Non-Existent Request Rejected (404)", res.status == 404)
+
     # Positive: Read invitations
     res = client.get("/api/admin/invitations")
     assert_test("Read Admin Invitations (200 OK)", res.status == 200 and isinstance(res.data, list))

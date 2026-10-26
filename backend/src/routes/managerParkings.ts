@@ -131,12 +131,27 @@ export async function handleApproveParkingRiderRequest(
     return jsonResponse({ error: "Rider request not found" }, 404);
   }
 
-  // Update request status
-  await env.DB.prepare(
-    "UPDATE rider_requests SET status = 'approved', updated_at = datetime('now') WHERE id = ?"
+  if (reqRow.status !== "pending") {
+    return jsonResponse(
+      { error: `Cannot approve request: request is already ${reqRow.status}.` },
+      400
+    );
+  }
+
+  // Update request status atomically
+  const updateRes = await env.DB.prepare(
+    "UPDATE rider_requests SET status = 'approved', updated_at = datetime('now') WHERE id = ? AND parking_id = ? AND status = 'pending'"
   )
-    .bind(reqId)
+    .bind(reqId, parkingId)
     .run();
+
+  const changes = updateRes.meta?.changes ?? (updateRes as any).changes ?? 0;
+  if (changes < 1) {
+    return jsonResponse(
+      { error: "Cannot approve request: request was already processed or is no longer pending." },
+      409
+    );
+  }
 
   // Enforce single-shed constraint: remove previous assignment if switching
   await env.DB.prepare("DELETE FROM parking_riders WHERE person_id = ?")
@@ -205,11 +220,36 @@ export async function handleRejectParkingRiderRequest(
     return jsonResponse({ error: "Forbidden: You are not a manager of this parking stand" }, 403);
   }
 
-  await env.DB.prepare(
-    "UPDATE rider_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ? AND parking_id = ?"
+  const reqRow = await env.DB.prepare(
+    "SELECT id, status FROM rider_requests WHERE id = ? AND parking_id = ?"
+  )
+    .bind(reqId, parkingId)
+    .first<any>();
+
+  if (!reqRow) {
+    return jsonResponse({ error: "Rider request not found" }, 404);
+  }
+
+  if (reqRow.status !== "pending") {
+    return jsonResponse(
+      { error: `Cannot reject request: request is already ${reqRow.status}.` },
+      400
+    );
+  }
+
+  const updateRes = await env.DB.prepare(
+    "UPDATE rider_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ? AND parking_id = ? AND status = 'pending'"
   )
     .bind(reqId, parkingId)
     .run();
+
+  const changes = updateRes.meta?.changes ?? (updateRes as any).changes ?? 0;
+  if (changes < 1) {
+    return jsonResponse(
+      { error: "Cannot reject request: request was already processed or is no longer pending." },
+      409
+    );
+  }
 
   const updated = await env.DB.prepare(
     "SELECT rr.id, rr.parking_id as parkingId, rr.person_id as personId, rr.invitation_id as invitationId, " +

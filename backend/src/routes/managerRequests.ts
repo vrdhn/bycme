@@ -106,6 +106,13 @@ export async function handleAdminApproveManagerRequest(
     return jsonResponse({ error: "Manager request not found" }, 404);
   }
 
+  if (reqRow.status !== "pending") {
+    return jsonResponse(
+      { error: `Cannot approve request: request is already ${reqRow.status}.` },
+      400
+    );
+  }
+
   if (reqRow.building_type !== "Private") {
     return jsonResponse(
       { error: "Cannot approve manager request: target parking belongs to a public building." },
@@ -113,12 +120,20 @@ export async function handleAdminApproveManagerRequest(
     );
   }
 
-  // Update request status
-  await env.DB.prepare(
-    "UPDATE manager_requests SET status = 'approved', updated_at = datetime('now') WHERE id = ?"
+  // Update request status atomically
+  const updateRes = await env.DB.prepare(
+    "UPDATE manager_requests SET status = 'approved', updated_at = datetime('now') WHERE id = ? AND status = 'pending'"
   )
     .bind(reqId)
     .run();
+
+  const changes = updateRes.meta?.changes ?? (updateRes as any).changes ?? 0;
+  if (changes < 1) {
+    return jsonResponse(
+      { error: "Cannot approve request: request was already processed or is no longer pending." },
+      409
+    );
+  }
 
   // Assign to parking_managers
   const pmId = `pm-${crypto.randomUUID().slice(0, 8)}`;
@@ -172,7 +187,7 @@ export async function handleAdminRejectManagerRequest(
     return jsonResponse({ error: "Forbidden: Admin role required" }, 403);
   }
 
-  const reqRow = await env.DB.prepare("SELECT id FROM manager_requests WHERE id = ?")
+  const reqRow = await env.DB.prepare("SELECT id, status FROM manager_requests WHERE id = ?")
     .bind(reqId)
     .first<any>();
 
@@ -180,11 +195,26 @@ export async function handleAdminRejectManagerRequest(
     return jsonResponse({ error: "Manager request not found" }, 404);
   }
 
-  await env.DB.prepare(
-    "UPDATE manager_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ?"
+  if (reqRow.status !== "pending") {
+    return jsonResponse(
+      { error: `Cannot reject request: request is already ${reqRow.status}.` },
+      400
+    );
+  }
+
+  const updateRes = await env.DB.prepare(
+    "UPDATE manager_requests SET status = 'rejected', updated_at = datetime('now') WHERE id = ? AND status = 'pending'"
   )
     .bind(reqId)
     .run();
+
+  const changes = updateRes.meta?.changes ?? (updateRes as any).changes ?? 0;
+  if (changes < 1) {
+    return jsonResponse(
+      { error: "Cannot reject request: request was already processed or is no longer pending." },
+      409
+    );
+  }
 
   const updated = await env.DB.prepare(
     "SELECT r.id, r.parking_id as parkingId, r.person_id as personId, r.invitation_id as invitationId, " +
