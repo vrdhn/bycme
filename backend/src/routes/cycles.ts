@@ -112,55 +112,39 @@ export async function handleCreateCycle(
     );
   }
 
-  let publicId = body.publicCycleId?.trim().toUpperCase();
-  if (!publicId) {
-    const locInfo = await env.DB.prepare(
-      "SELECT c.name as city_name FROM parkings p " +
-        "JOIN buildings b ON p.building_id = b.id " +
-        "JOIN cities c ON b.city_id = c.id " +
-        "WHERE p.id = ?"
-    )
-      .bind(parkingId)
-      .first<{ city_name: string }>();
+  const locInfo = await env.DB.prepare(
+    "SELECT c.name as city_name FROM parkings p " +
+      "JOIN buildings b ON p.building_id = b.id " +
+      "JOIN cities c ON b.city_id = c.id " +
+      "WHERE p.id = ?"
+  )
+    .bind(parkingId)
+    .first<{ city_name: string }>();
 
-    const prefix = locInfo?.city_name
-      ? locInfo.city_name.slice(0, 3).toUpperCase()
-      : "CYC";
+  const prefix = locInfo?.city_name
+    ? locInfo.city_name.slice(0, 3).toUpperCase()
+    : "CYC";
 
-    const existingCycles = await env.DB.prepare(
-      "SELECT public_cycle_id FROM cycles WHERE public_cycle_id LIKE ?"
-    )
-      .bind(`${prefix}-%`)
-      .all<{ public_cycle_id: string }>();
-
-    let maxSeq = 0;
-    for (const row of existingCycles.results || []) {
-      const parts = row.public_cycle_id.split("-");
-      if (parts.length >= 2) {
-        const num = parseInt(parts[1], 10);
-        if (!isNaN(num) && num > maxSeq) {
-          maxSeq = num;
-        }
-      }
-    }
-    publicId = `${prefix}-${String(maxSeq + 1).padStart(3, "0")}`;
-  } else {
+  const explicitPublicId = body.publicCycleId?.trim().toUpperCase();
+  if (explicitPublicId) {
     const existingId = await env.DB.prepare(
       "SELECT id FROM cycles WHERE LOWER(public_cycle_id) = LOWER(?)"
     )
-      .bind(publicId)
+      .bind(explicitPublicId)
       .first();
     if (existingId) {
-      return jsonResponse({ error: `Cycle with ID '${publicId}' already exists` }, 400);
+      return jsonResponse({ error: `Cycle with ID '${explicitPublicId}' already exists` }, 400);
     }
   }
 
-  const qrCode = body.qrCode?.trim() || generateCompactToken();
-  const existingQr = await env.DB.prepare("SELECT id FROM cycles WHERE qr_code = ?")
-    .bind(qrCode)
-    .first();
-  if (existingQr) {
-    return jsonResponse({ error: "Cycle with this QR code already exists" }, 400);
+  const explicitQr = body.qrCode?.trim();
+  if (explicitQr) {
+    const existingQr = await env.DB.prepare("SELECT id FROM cycles WHERE qr_code = ?")
+      .bind(explicitQr)
+      .first();
+    if (existingQr) {
+      return jsonResponse({ error: "Cycle with this QR code already exists" }, 400);
+    }
   }
 
   const dupLock = await env.DB.prepare(
@@ -179,22 +163,73 @@ export async function handleCreateCycle(
   const status =
     body.status === "Puncture" || body.status === "Broken" ? body.status : "Working";
 
-  await env.DB.prepare(
-    "INSERT INTO cycles (id, public_cycle_id, parking_id, company, model, colour, status, lock_code, qr_code) " +
-      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-  )
-    .bind(
-      id,
-      publicId,
-      parkingId,
-      body.brand.trim(),
-      body.cycleModel.trim(),
-      body.colour.trim(),
-      status,
-      body.lockCode.trim(),
-      qrCode
-    )
-    .run();
+  const maxAttempts = explicitPublicId ? 1 : 5;
+  let inserted = false;
+  let assignedPublicId = explicitPublicId || "";
+  let assignedQr = explicitQr || "";
+  let lastAttemptSeq = 0;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (!explicitPublicId) {
+      const existingCycles = await env.DB.prepare(
+        "SELECT public_cycle_id FROM cycles WHERE public_cycle_id LIKE ?"
+      )
+        .bind(`${prefix}-%`)
+        .all<{ public_cycle_id: string }>();
+
+      let maxSeq = 0;
+      for (const row of existingCycles.results || []) {
+        const parts = row.public_cycle_id.split("-");
+        if (parts.length >= 2) {
+          const num = parseInt(parts[1], 10);
+          if (!isNaN(num) && num > maxSeq) {
+            maxSeq = num;
+          }
+        }
+      }
+      let candSeq = maxSeq + 1;
+      if (attempt > 0 && candSeq <= lastAttemptSeq) {
+        candSeq = lastAttemptSeq + 1;
+      }
+      lastAttemptSeq = candSeq;
+      assignedPublicId = `${prefix}-${String(candSeq).padStart(3, "0")}`;
+    }
+
+    if (!explicitQr) {
+      assignedQr = generateCompactToken();
+    }
+
+    try {
+      await env.DB.prepare(
+        "INSERT INTO cycles (id, public_cycle_id, parking_id, company, model, colour, status, lock_code, qr_code) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+        .bind(
+          id,
+          assignedPublicId,
+          parkingId,
+          body.brand.trim(),
+          body.cycleModel.trim(),
+          body.colour.trim(),
+          status,
+          body.lockCode.trim(),
+          assignedQr
+        )
+        .run();
+
+      inserted = true;
+      break;
+    } catch (err: any) {
+      const errMsg = String(err?.message || "");
+      if (explicitPublicId || (!errMsg.includes("UNIQUE constraint failed") && !errMsg.includes("constraint"))) {
+        throw err;
+      }
+    }
+  }
+
+  if (!inserted) {
+    return jsonResponse({ error: "Failed to allocate unique cycle identifier. Please retry." }, 500);
+  }
 
   const created = await env.DB.prepare(
     "SELECT c.id, c.public_cycle_id, c.parking_id, c.company, c.model, c.colour, c.status, " +

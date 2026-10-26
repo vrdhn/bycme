@@ -146,8 +146,8 @@
 
 ### `fix006`: Cycle Registration Enhancements & Form Validation
 * **Auto-Generated Public Cycle ID**:
-  * `public_cycle_id` auto-generated sequentially based on station city prefix (`PUN-XXX`, `BLR-XXX`, `HYD-XXX`, `CYC-XXX`).
-  * Add Cycle modal displays ID as locked auto-assigned value; made optional in `CreateCycleRequest`.
+  * `public_cycle_id` auto-generated sequentially on backend based on station city prefix (`PUN-XXX`, `BLR-XXX`, `HYD-XXX`, `CYC-XXX`) with concurrency retry handling.
+  * Public ID control removed from Add Cycle modal; ID assigned exclusively by backend `POST` response.
 * **Combobox Metadata Suggestions**:
   * Brand, Model, and Frame Colour inputs provide editable datalist dropdowns populated from existing cycle inventory.
 * **Non-Editable QR Code Token**:
@@ -277,6 +277,15 @@
 * **Frontend GUI Integration**:
   * `PasswordResetModal`: Modal displayed in ClubHero directory and HubHero riders roster with copyable URL and direct `wa.me` share button.
   * `ResetPasswordLanding`: Public SPA view at `/#/reset-password/<token>` for credential setting and redirection to login.
+
+### `fix007`: Eliminate Client-Side Cycle ID Race Condition
+* **Server-Authoritative Public Cycle ID**:
+  * Public cycle ID (`public_cycle_id`) generation migrated entirely from client-side estimation to backend API `POST /api/parkings/{id}/cycles`.
+  * Removed pre-computed ID field and locked inputs from manager Add Cycle modal; public cycle ID assigned strictly via backend response.
+* **Sequential Numbering with Concurrency Retry**:
+  * Prefix derived from city name (`PUN-`, `BLR-`, `HYD-`, `CYC-`).
+  * Backend calculates sequential integer based on existing IDs (`PREFIX-XXX`).
+  * Concurrency collision retry loop (up to 3 attempts) handling simultaneous additions under high traffic.
 
 ---
 
@@ -607,7 +616,7 @@
 | `fix003` | `POST` | `/api/admin/invitations/{id}/revoke` | Revoke / expire invitation link immediately | `Authorization: Bearer <token>` (Admin) | None | `ManagerInvitation` |
 | `feat006, fix004` | `GET` | `/api/me/parkings` | List parking stations managed by caller | `Authorization: Bearer <token>` (Manager) | None | `Parking[]` |
 | `feat006, fix004` | `GET` | `/api/parkings/{id}/cycles` | List cycles stationed at parking stand | `Authorization: Bearer <token>` (Manager) | None | `Cycle[]` |
-| `feat006, fix004, fix006, feat013` | `POST` | `/api/parkings/{id}/cycles` | Register new cycle to parking stand (auto-generates cycle ID, enforces unique lock code per hub) | `Authorization: Bearer <token>` (Manager) | `CreateCycleRequest` | `Cycle` |
+| `feat006, fix004, fix006, feat013, fix007` | `POST` | `/api/parkings/{id}/cycles` | Register new cycle to parking stand (backend auto-assigns cycle ID with retry loop, enforces unique lock code per hub) | `Authorization: Bearer <token>` (Manager) | `CreateCycleRequest` | `Cycle` |
 | `feat006, fix004, fix006, feat013` | `PUT` | `/api/cycles/{id}` | Update cycle condition, lock code, QR code, or metadata (enforces unique lock code per hub) | `Authorization: Bearer <token>` (Manager) | `UpdateCycleRequest` | `Cycle` |
 | `feat006, feat009` | `GET` | `/api/cycles/lookup/{identifier}` | Search cycle by publicCycleId or qr_code (reveals lockCode only if active checkout exists) | Optional `Authorization: Bearer <token>` | None | `Cycle` |
 | `feat009` | `GET` | `/api/me/active-checkout` | Return caller's current active cycle checkout session | `Authorization: Bearer <token>` | None | `ActiveCheckoutResponse` |

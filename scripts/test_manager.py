@@ -94,6 +94,29 @@ def run_manager_tests(base_url: str = "") -> bool:
         f"Got status {res.status}",
     )
 
+    # Positive: Register cycle without publicCycleId (backend auto-assigns ID sequentially)
+    cycles_list = client.get("/api/parkings/prk-gw-gate1/cycles").data
+    existing_locks = {c.get("lockCode") for c in cycles_list if isinstance(c, dict)}
+    avail_lock = next(str(n).zfill(4) for n in range(1000, 9999) if str(n).zfill(4) not in existing_locks)
+    res = client.post(
+        "/api/parkings/prk-gw-gate1/cycles",
+        {
+            "brand": "Hero",
+            "cycleModel": "Sprint",
+            "colour": "Teal",
+            "status": "Working",
+            "lockCode": avail_lock,
+        },
+    )
+    assert_test(
+        "Auto-Assign Unique Cycle Identifier (201 Created)",
+        res.status == 201
+        and isinstance(res.data.get("publicCycleId"), str)
+        and res.data["publicCycleId"].startswith("PUN-")
+        and res.data.get("lockCode") == avail_lock,
+        f"Got status {res.status}: {res.data}",
+    )
+
     # Negative: Register cycle with duplicate lock code in same parking stand (feat013)
     res = client.post(
         "/api/parkings/prk-gw-gate1/cycles",

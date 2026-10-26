@@ -79,7 +79,7 @@
 
 | Test ID | Persona | Type | Description | Steps / Inputs | Expected Result |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **FLT-P01** | Manager | Positive | Register new bicycle to parking stand | Enter Company: Hero, Model: Sprint, Colour: Red, Lock: 1234 | Returns `201 Created`, auto-assigns sequence `PUN-xxx` |
+| **FLT-P01** | Manager | Positive | Register new bicycle to parking stand (backend sequence assignment) | Enter Company: Hero, Model: Sprint, Colour: Red, Lock: unique code (public ID control removed from UI) | Returns `201 Created`, backend auto-assigns sequence `PUN-xxx` |
 | **FLT-P02** | Manager | Positive | Repair out-of-order bicycle | Select cycle in `Puncture` status, update status to `Working` | Cycle status updated to `Working`, eligible for checkout |
 | **FLT-P03** | Public Visitor | Positive | Lookup cycle by QR / public ID anonymously | Call `GET /api/cycles/lookup/PUN-001` without auth | Returns cycle model, colour, status; `lockCode` is **hidden** |
 | **FLT-P04** | Active Rider | Positive | Lookup cycle currently checked out by caller | Call `GET /api/cycles/lookup/PUN-001` with active rider token | Returns cycle info including `lockCode` ("4521") |

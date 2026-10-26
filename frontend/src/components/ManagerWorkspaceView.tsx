@@ -48,7 +48,6 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
 
   // Add Cycle Modal state
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addPublicId, setAddPublicId] = useState("");
   const [addBrand, setAddBrand] = useState("");
   const [addModel, setAddModel] = useState("");
   const [addColour, setAddColour] = useState("");
@@ -213,24 +212,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
     return Array.from(new Set(cycles.map((c) => c.colour).filter(Boolean))).sort();
   }, [cycles]);
 
-  const computeNextCycleId = useCallback(() => {
-    const cityName = selectedParking?.cityName;
-    const prefix = cityName ? cityName.slice(0, 3).toUpperCase() : "CYC";
-    let maxNum = 0;
-    for (const c of cycles) {
-      if (c.publicCycleId.startsWith(`${prefix}-`)) {
-        const parts = c.publicCycleId.split("-");
-        const num = parseInt(parts[1], 10);
-        if (!isNaN(num) && num > maxNum) {
-          maxNum = num;
-        }
-      }
-    }
-    return `${prefix}-${String(maxNum + 1).padStart(3, "0")}`;
-  }, [selectedParking, cycles]);
-
   const handleOpenAdd = () => {
-    setAddPublicId(computeNextCycleId());
     setAddBrand("");
     setAddModel("");
     setAddColour("");
@@ -256,10 +238,9 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
     setModalError(null);
 
     try {
-      await apiClient.createCycle(
+      const created = await apiClient.createCycle(
         selectedParkingId,
         {
-          publicCycleId: addPublicId.trim().toUpperCase(),
           brand: addBrand.trim(),
           cycleModel: addModel.trim(),
           colour: addColour.trim(),
@@ -270,7 +251,7 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
         token
       );
       setShowAddModal(false);
-      setSuccessMsg(`Cycle ${addPublicId.trim().toUpperCase()} added successfully.`);
+      setSuccessMsg(`Cycle ${created.publicCycleId} added successfully.`);
       setTimeout(() => setSuccessMsg(null), 3000);
       loadCycles();
     } catch (err) {
@@ -933,28 +914,6 @@ export function ManagerWorkspaceView({ apiClient, token }: ManagerWorkspaceViewP
             {modalError && <div className="alert-error" style={{ marginBottom: "1rem" }}>{modalError}</div>}
 
             <form onSubmit={handleAddCycle}>
-              <div className="form-group">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <label className="form-label">Public Cycle ID (Auto-generated)</label>
-                  <span style={{ fontSize: "0.75rem", color: "var(--primary-color)", fontWeight: 600 }}>
-                    🔒 Auto-assigned
-                  </span>
-                </div>
-                <input
-                  type="text"
-                  readOnly
-                  className="form-input"
-                  value={addPublicId}
-                  style={{
-                    fontFamily: "monospace",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    background: "var(--bg-muted, #f1f5f9)",
-                    cursor: "not-allowed",
-                  }}
-                />
-              </div>
-
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div className="form-group">
                   <label className="form-label">Company / Brand</label>
